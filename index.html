@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#6C63FF">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon.svg">
+<title>Agenda Personal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-noise"></div>
+<div id="app">
+  <header id="header">
+    <div class="header-left">
+      <span class="logo">📋 Agenda</span>
+      <span class="header-date" id="headerDate"></span>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" id="todayBtn" title="Ir a hoy">📅 Hoy</button>
+      <button class="btn-icon" id="themeToggle" title="Cambiar tema">🌙</button>
+      <button class="btn-icon" id="settingsBtn" title="Configuración">⚙️</button>
+    </div>
+  </header>
+
+  <nav id="mainNav">
+    <button class="nav-btn active" data-view="today" data-icon="📅">Hoy</button>
+    <button class="nav-btn" data-view="daily" data-icon="📋">Diario</button>
+    <button class="nav-btn" data-view="weekly" data-icon="📆">Semanal</button>
+    <button class="nav-btn" data-view="monthly" data-icon="🗓️">Mensual</button>
+    <button class="nav-btn" data-view="goals" data-icon="🎯">Metas</button>
+    <button class="nav-btn" data-view="trips" data-icon="✈️">Viajes</button>
+    <button class="nav-btn" data-view="tasks" data-icon="✅">Tareas</button>
+    <button class="nav-btn" data-view="habits" data-icon="🔄">Hábitos</button>
+    <button class="nav-btn" data-view="gym" data-icon="🏋️">Gym</button>
+    <button class="nav-btn" data-view="notes" data-icon="📝">Notas</button>
+  </nav>
+
+  <div id="navControls">
+    <button class="btn-nav" id="prevBtn">◀</button>
+    <span class="nav-title" id="navTitle"></span>
+    <button class="btn-nav" id="nextBtn">▶</button>
+  </div>
+
+  <main id="mainContent"></main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="btn-icon modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel modal-sm">
+      <div class="modal-header">
+        <h3>Confirmar</h3>
+        <button class="btn-icon modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer" id="confirmFooter"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- FAB -->
+  <button id="fab" class="fab hidden" onclick="App.onFabClick()">+</button>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+</script>
+</body>
+</html>
