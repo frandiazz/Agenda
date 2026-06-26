@@ -1,13 +1,14 @@
 const CACHE = 'agenda-v1';
+const BASE = self.location.pathname.replace(/[^/]+$/, '');
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/data.js',
-  '/js/ui.js',
-  '/js/app.js',
-  '/manifest.json',
-  '/assets/icon.svg'
+  BASE,
+  BASE + 'index.html',
+  BASE + 'css/style.css',
+  BASE + 'js/data.js',
+  BASE + 'js/ui.js',
+  BASE + 'js/app.js',
+  BASE + 'manifest.json',
+  BASE + 'assets/icon.svg'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(

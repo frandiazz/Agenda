@@ -2,7 +2,7 @@
   "name": "Agenda Personal",
   "short_name": "Agenda",
   "description": "Planificador diario con eventos, tareas, metas, hábitos, gimnasio y viajes",
-  "start_url": "/",
+  "start_url": "/Agenda/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#050510",
