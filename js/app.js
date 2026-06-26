@@ -17,7 +17,9 @@ const App = {
     // Nav clicks
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        this.switchView(btn.dataset.view);
+        const v = btn.dataset.view;
+        if (v === '__more__') { this.toggleMoreMenu(); return; }
+        this.switchView(v);
       });
     });
 
@@ -94,7 +96,14 @@ const App = {
   // ---------- Navigation ----------
   switchView(view) {
     this.state.currentView = view;
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      const isActive = b.dataset.view === view;
+      b.classList.toggle('active', isActive);
+      // If secondary view is active and button is hidden, clear others
+      if (isActive && b.classList.contains('nav-secondary')) {
+        document.querySelectorAll('.nav-btn:not(.nav-secondary)').forEach(x => x.classList.remove('active'));
+      }
+    });
     this.renderView(view);
   },
 
@@ -118,6 +127,8 @@ const App = {
   },
 
   _postRender(view, container) {
+    // Close more menu if open
+    this.hideMoreMenu();
     // Add btn class to buttons
     container.querySelectorAll('.btn-primary, .btn-secondary, .btn-danger').forEach(el => el.classList.add('btn'));
     // Stagger grids
@@ -229,6 +240,50 @@ const App = {
   onFabClick() {
     const fab = document.getElementById('fab');
     if (fab && fab._action) fab._action();
+  },
+
+  // ---------- More menu (mobile) ----------
+  _moreOpen: false,
+
+  toggleMoreMenu() {
+    if (this._moreOpen) this.hideMoreMenu();
+    else this.showMoreMenu();
+  },
+
+  showMoreMenu() {
+    if (this._moreOpen) return;
+    this._moreOpen = true;
+    const nav = document.getElementById('mainNav');
+    const existing = nav.querySelector('.more-overlay');
+    if (existing) existing.remove();
+
+    const items = [
+      { view: 'weekly', icon: '📆', label: 'Semanal' },
+      { view: 'monthly', icon: '🗓️', label: 'Mensual' },
+      { view: 'goals', icon: '🎯', label: 'Metas' },
+      { view: 'trips', icon: '✈️', label: 'Viajes' },
+      { view: 'habits', icon: '🔄', label: 'Hábitos' },
+    ];
+    const active = this.state.currentView;
+
+    let html = '<div class="more-overlay" onclick="App.hideMoreMenu()"><div class="more-backdrop"></div><div class="more-grid" onclick="event.stopPropagation()">';
+    items.forEach(item => {
+      html += `<button class="more-item ${item.view === active ? 'active' : ''}" onclick="App.hideMoreMenu();App.switchView('${item.view}')">
+        <span class="more-icon">${item.icon}</span>
+        <span class="more-label">${item.label}</span>
+      </button>`;
+    });
+    html += '</div></div>';
+    nav.insertAdjacentHTML('beforeend', html);
+    document.body.classList.add('more-open');
+  },
+
+  hideMoreMenu() {
+    if (!this._moreOpen) return;
+    this._moreOpen = false;
+    const overlay = document.querySelector('.more-overlay');
+    if (overlay) overlay.remove();
+    document.body.classList.remove('more-open');
   },
 
   goToDate(dateStr) {
