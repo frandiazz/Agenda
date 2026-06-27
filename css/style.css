@@ -195,15 +195,16 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 /* Desktop nav ordering */
 @media (min-width: 769px) {
   .nav-btn[data-view="today"] { order: 1; }
-  .nav-btn[data-view="daily"] { order: 2; }
-  .nav-btn[data-view="weekly"] { order: 3; }
-  .nav-btn[data-view="monthly"] { order: 4; }
-  .nav-btn[data-view="goals"] { order: 5; }
-  .nav-btn[data-view="tasks"] { order: 6; }
-  .nav-btn[data-view="habits"] { order: 7; }
-  .nav-btn[data-view="gym"] { order: 8; }
-  .nav-btn[data-view="trips"] { order: 9; }
-  .nav-btn[data-view="notes"] { order: 10; }
+  .nav-btn[data-view="calendar"] { order: 2; }
+  .nav-btn[data-view="daily"] { order: 3; }
+  .nav-btn[data-view="weekly"] { order: 4; }
+  .nav-btn[data-view="monthly"] { order: 5; }
+  .nav-btn[data-view="goals"] { order: 6; }
+  .nav-btn[data-view="tasks"] { order: 7; }
+  .nav-btn[data-view="habits"] { order: 8; }
+  .nav-btn[data-view="gym"] { order: 9; }
+  .nav-btn[data-view="trips"] { order: 10; }
+  .nav-btn[data-view="notes"] { order: 11; }
   .nav-btn[data-view="__more__"] { display: none !important; }
 }
 .nav-btn:hover { background: var(--bg-card); color: var(--text-secondary); transform: translateY(-1px); }
@@ -244,6 +245,26 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
   display: flex; align-items: center; gap: 10px;
 }
 .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
+
+/* === CALENDAR TABS === */
+.cal-tabs {
+  display: flex; gap: 4px; margin-bottom: 20px;
+  background: var(--bg-card); border-radius: var(--radius-md);
+  padding: 4px; border: 1px solid var(--border-color);
+}
+.cal-tab {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  font-size: 0.82rem; font-weight: 600; text-align: center;
+  color: var(--text-secondary); cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.cal-tab.active {
+  background: var(--accent-grad); color: #fff;
+  box-shadow: 0 4px 12px rgba(108,99,255,0.3);
+}
+.cal-tab:active { transform: scale(0.96); }
+.cal-content { min-height: 200px; }
 .view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
 .view-title {
   font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px;

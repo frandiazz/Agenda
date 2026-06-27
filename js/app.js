@@ -2,6 +2,7 @@ const App = {
   state: {
     currentView: 'today',
     currentDate: new Date(),
+    calendarMode: 'day',
     goalFilter: 'all',
     taskFilterCat: 'all',
     taskFilterPri: 'all',
@@ -94,6 +95,11 @@ const App = {
   },
 
   // ---------- Navigation ----------
+  setCalendarMode(mode) {
+    this.state.calendarMode = mode;
+    this.renderView('calendar');
+  },
+
   switchView(view) {
     this.state.currentView = view;
     document.querySelectorAll('.nav-btn').forEach(b => {
@@ -111,6 +117,7 @@ const App = {
     const container = document.getElementById('mainContent');
     switch (view) {
       case 'today': container.innerHTML = UI.renderToday(this.state); break;
+      case 'calendar': container.innerHTML = UI.renderCalendar(this.state); break;
       case 'daily': container.innerHTML = UI.renderDaily(this.state); break;
       case 'weekly': container.innerHTML = UI.renderWeekly(this.state); break;
       case 'monthly': container.innerHTML = UI.renderMonthly(this.state); break;
@@ -123,7 +130,7 @@ const App = {
     }
     this._postRender(view, container);
     this.updateNavTitle();
-    if (['today', 'daily'].includes(view)) this.updateHeaderDate();
+    if (['today', 'daily', 'calendar'].includes(view)) this.updateHeaderDate();
   },
 
   _postRender(view, container) {
@@ -132,7 +139,7 @@ const App = {
     // Add btn class to buttons
     container.querySelectorAll('.btn-primary, .btn-secondary, .btn-danger').forEach(el => el.classList.add('btn'));
     // Stagger grids
-    const grids = container.querySelectorAll('.today-grid, .week-grid, .goals-grid, .trips-grid, .notes-grid, .tasks-list, .stats-row');
+    const grids = container.querySelectorAll('.today-grid, .hourly-grid, .week-grid, .month-grid, .goals-grid, .trips-grid, .notes-grid, .tasks-list, .stats-row');
     grids.forEach(g => g.classList.add('stagger-children'));
     // FAB visibility
     this._updateFab(view);
@@ -165,6 +172,12 @@ const App = {
     let title = '';
     switch (this.state.currentView) {
       case 'today': title = UI._formatDate(d); break;
+      case 'calendar': {
+        const mode = this.state.calendarMode || 'day';
+        const labels = { day: '📅 ', week: '📆 ', month: '🗓️ ' };
+        title = (labels[mode] || '📅 ') + UI._formatDate(d);
+        break;
+      }
       case 'daily': title = UI._formatDate(d); break;
       case 'weekly':
         const monday = new Date(d);
@@ -192,7 +205,7 @@ const App = {
   navigate(dir) {
     const v = this.state.currentView;
     const d = new Date(this.state.currentDate);
-    if (v === 'daily' || v === 'today') {
+    if (v === 'daily' || v === 'today' || v === 'calendar') {
       d.setDate(d.getDate() + dir);
     } else if (v === 'weekly') {
       d.setDate(d.getDate() + dir * 7);
@@ -219,6 +232,7 @@ const App = {
     if (!fab) return;
     const createActions = {
       today: () => this.openEventForm(UI._toDateStr(this.state.currentDate)),
+      calendar: () => this.openEventForm(UI._toDateStr(this.state.currentDate)),
       daily: () => this.openEventForm(UI._toDateStr(this.state.currentDate)),
       weekly: () => this.openEventForm(UI._toDateStr(this.state.currentDate)),
       monthly: () => this.openEventForm(UI._toDateStr(this.state.currentDate)),
@@ -258,8 +272,10 @@ const App = {
     if (existing) existing.remove();
 
     const items = [
+      { view: 'daily', icon: '📋', label: 'Día' },
       { view: 'weekly', icon: '📆', label: 'Semanal' },
       { view: 'monthly', icon: '🗓️', label: 'Mensual' },
+      { view: 'notes', icon: '📝', label: 'Notas' },
       { view: 'goals', icon: '🎯', label: 'Metas' },
       { view: 'trips', icon: '✈️', label: 'Viajes' },
       { view: 'habits', icon: '🔄', label: 'Hábitos' },

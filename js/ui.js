@@ -199,7 +199,39 @@ const UI = {
     return html;
   },
 
+  renderCalendar(state) {
+    const d = state.currentDate;
+    const dateStr = this._toDateStr(d);
+    const mode = state.calendarMode || 'day';
+    const modes = [
+      { key: 'day', label: 'Día' },
+      { key: 'week', label: 'Semana' },
+      { key: 'month', label: 'Mes' },
+    ];
+    let html = `<div class="view"><div class="cal-tabs">`;
+    modes.forEach(m => {
+      html += `<button class="cal-tab ${m.key === mode ? 'active' : ''}" onclick="App.setCalendarMode('${m.key}')">${m.label}</button>`;
+    });
+    html += `</div><div class="cal-content"></div>`;
+
+    // Render the active sub-view content
+    if (mode === 'day') {
+      html += this._renderDailyInner(state);
+    } else if (mode === 'week') {
+      html += this._renderWeeklyInner(state);
+    } else if (mode === 'month') {
+      html += this._renderMonthlyInner(state);
+    }
+
+    html += `</div>`;
+    return html;
+  },
+
   renderDaily(state) {
+    return `<div class="view">${this._renderDailyInner(state)}</div>`;
+  },
+
+  _renderDailyInner(state) {
     const dateStr = this._toDateStr(state.currentDate);
     const events = AgendaData.getEventsByDate(dateStr);
     const startH = 0;
@@ -226,7 +258,7 @@ const UI = {
       }
     });
 
-    let html = `<div class="view"><div class="hourly-grid">`;
+    let html = `<div class="hourly-grid">`;
     for (let h = startH; h <= endH; h++) {
       const timeLabel = this._timeLabel(h);
       const hourEvents = eventMap[h] || [];
@@ -253,11 +285,15 @@ const UI = {
         </div>
       </div>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
     return html;
   },
 
   renderWeekly(state) {
+    return `<div class="view">${this._renderWeeklyInner(state)}</div>`;
+  },
+
+  _renderWeeklyInner(state) {
     const today = new Date();
     const todayStr = this._toDateStr(today);
     const monday = new Date(state.currentDate);
@@ -283,7 +319,7 @@ const UI = {
 
     const currentMonth = state.currentDate.getMonth();
 
-    let html = `<div class="view"><div class="week-grid">`;
+    let html = `<div class="week-grid">`;
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
       d.setDate(d.getDate() + i);
@@ -313,11 +349,15 @@ const UI = {
         </div>
       </div>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
     return html;
   },
 
   renderMonthly(state) {
+    return `<div class="view">${this._renderMonthlyInner(state)}</div>`;
+  },
+
+  _renderMonthlyInner(state) {
     const today = new Date();
     const todayStr = this._toDateStr(today);
     const year = state.currentDate.getFullYear();
@@ -350,7 +390,7 @@ const UI = {
       iterDate.setDate(iterDate.getDate() + 1);
     }
 
-    let html = `<div class="view"><div class="month-grid">`;
+    let html = `<div class="month-grid">`;
     DAYS_SHORT.forEach(d => {
       html += `<div class="month-header-cell">${d}</div>`;
     });
@@ -375,7 +415,7 @@ const UI = {
       </div>`;
       iterDate2.setDate(iterDate2.getDate() + 1);
     }
-    html += `</div></div>`;
+    html += `</div>`;
     return html;
   },
 
