@@ -267,14 +267,10 @@ const App = {
   showMoreMenu() {
     if (this._moreOpen) return;
     this._moreOpen = true;
-    const nav = document.getElementById('mainNav');
-    const existing = nav.querySelector('.more-overlay');
+    const existing = document.querySelector('.more-overlay');
     if (existing) existing.remove();
 
     const items = [
-      { view: 'daily', icon: '📋', label: 'Día' },
-      { view: 'weekly', icon: '📆', label: 'Semanal' },
-      { view: 'monthly', icon: '🗓️', label: 'Mensual' },
       { view: 'notes', icon: '📝', label: 'Notas' },
       { view: 'goals', icon: '🎯', label: 'Metas' },
       { view: 'trips', icon: '✈️', label: 'Viajes' },
@@ -282,7 +278,7 @@ const App = {
     ];
     const active = this.state.currentView;
 
-    let html = '<div class="more-overlay" onclick="App.hideMoreMenu()"><div class="more-backdrop"></div><div class="more-grid" onclick="event.stopPropagation()">';
+    let html = '<div class="more-overlay"><div class="more-backdrop" onclick="App.hideMoreMenu()"></div><div class="more-grid">';
     items.forEach(item => {
       html += `<button class="more-item ${item.view === active ? 'active' : ''}" onclick="App.hideMoreMenu();App.switchView('${item.view}')">
         <span class="more-icon">${item.icon}</span>
@@ -290,7 +286,7 @@ const App = {
       </button>`;
     });
     html += '</div></div>';
-    nav.insertAdjacentHTML('beforeend', html);
+    document.body.insertAdjacentHTML('beforeend', html);
     document.body.classList.add('more-open');
   },
 

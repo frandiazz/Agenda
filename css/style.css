@@ -856,7 +856,7 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 
 /* === MORE OVERLAY (Mobile) === */
 .more-overlay {
-  position: fixed; inset: 0; z-index: 99;
+  position: fixed; inset: 0; z-index: 999;
   display: flex; align-items: flex-end; justify-content: center;
   animation: moreFadeIn 0.25s var(--ease-out);
 }
@@ -864,18 +864,19 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 .more-backdrop {
   position: absolute; inset: 0;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(6px);
+  cursor: pointer;
 }
 .more-grid {
   position: relative; z-index: 1;
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 10px; padding: 20px 20px calc(100px + env(safe-area-inset-bottom, 0px));
-  max-width: 100%; width: 100%;
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 12px; padding: 24px 24px calc(96px + env(safe-area-inset-bottom, 0px));
+  max-width: 340px; width: 100%;
   animation: moreSheetUp 0.35s var(--ease-out);
 }
 @keyframes moreSheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .more-item {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 16px 8px; border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 20px 12px; border-radius: 16px;
   background: var(--bg-card); border: 1px solid var(--border-color);
   backdrop-filter: blur(8px); cursor: pointer;
   transition: all 0.3s var(--ease-out); font-family: inherit;
@@ -883,13 +884,14 @@ select { cursor: pointer; appearance: none; background-image: url("data:image/sv
 .more-item:hover { background: var(--bg-card-hover); border-color: var(--border-hover); transform: translateY(-3px); }
 .more-item:active { transform: scale(0.95); }
 .more-item.active { border-color: var(--accent-1); background: rgba(108,99,255,0.1); }
-.more-icon { font-size: 1.6rem; display: block; }
+.more-icon { font-size: 2rem; display: block; }
 .more-label {
-  font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.3px;
+  font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
 }
 .more-item.active .more-label { color: var(--accent-1); }
 body.more-open #fab { display: none; }
+body.more-open { overflow: hidden; }
 
 /* === MOBILE FIRST: 768px === */
 @media (max-width: 768px) {
