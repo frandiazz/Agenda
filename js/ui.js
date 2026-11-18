@@ -2,8 +2,10 @@ const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', '
 const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const PRIORITIES = { 1: 'P1 - Urgente', 2: 'P2 - Importante', 3: 'P3 - Normal', 4: 'P4 - Baja' };
+const PRIORITY_COLORS = { 1: '#ff453a', 2: '#ff9f0a', 3: '#0a84ff', 4: '#8e8e93' };
 
 const UI = {
+  // ---------- Format helpers ----------
   _formatDate(d) {
     if (typeof d === 'string') d = new Date(d + 'T12:00:00');
     return `${DAYS[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
@@ -18,22 +20,18 @@ const UI = {
     return d.toISOString().slice(0, 10);
   },
 
-  _parseTime(t) {
-    const [h, m] = t.split(':').map(Number);
-    return h + m / 60;
-  },
-
   _timeLabel(h) {
     return `${String(h).padStart(2, '0')}:00`;
   },
 
   _catStyle(id) {
     const cat = AgendaData.getCategories().find(c => c.id === id);
-    return cat ? cat.color : '#666';
+    return cat ? cat.color : '#8e8e93';
   },
 
-  _catClass(id) {
-    return `cat-${id}`;
+  _catIcon(id) {
+    const cat = AgendaData.getCategories().find(c => c.id === id);
+    return cat ? cat.icon : '📌';
   },
 
   _esc(html) {
@@ -47,7 +45,7 @@ const UI = {
   },
 
   // ---------- Toast ----------
-  toast(msg, duration = 2500) {
+  toast(msg, duration = 2600) {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.classList.remove('hidden');
@@ -55,7 +53,18 @@ const UI = {
     this._toastTimer = setTimeout(() => el.classList.add('hidden'), duration);
   },
 
-  // ---------- View renderers ----------
+  // ---------- Generic form field ----------
+  _formField(label, html, cls = '') {
+    return `<div class="form-group ${cls}"><label>${this._esc(label)}</label>${html}</div>`;
+  },
+
+  _select(options, value, attrs = '') {
+    return `<select ${attrs}>${options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${this._esc(o.label)}</option>`).join('')}</select>`;
+  },
+
+  // ============================================================
+  // VIEW RENDERERS
+  // ============================================================
 
   renderToday(state) {
     const today = state.currentDate;
@@ -73,9 +82,7 @@ const UI = {
     const currentEvents = events.filter(e => {
       const startH = parseInt(e.startTime);
       const endH = e.endTime ? parseInt(e.endTime) : startH + 1;
-      if (endH <= startH) {
-        return currentHour >= startH || currentHour < endH;
-      }
+      if (endH <= startH) return currentHour >= startH || currentHour < endH;
       return currentHour >= startH && currentHour < endH;
     });
 
@@ -85,20 +92,20 @@ const UI = {
     html += `<div class="today-full"><div class="stats-row">
       <div class="stat-card"><span class="stat-icon">📅</span><div class="stat-value">${events.length}</div><div class="stat-label">Eventos hoy</div></div>
       <div class="stat-card"><span class="stat-icon">✅</span><div class="stat-value">${pendingTasks.length}</div><div class="stat-label">Tareas pendientes</div></div>
-      <div class="stat-card"><span class="stat-icon">🔄</span><div class="stat-value">${todayHabits.length}/${habits.length}</div><div class="stat-label">Hábitos hoy</div></div>
+      <div class="stat-card"><span class="stat-icon">🔄</span><div class="stat-value">${todayHabits.length}</div><div class="stat-label">Hábitos hoy</div></div>
       <div class="stat-card"><span class="stat-icon">📝</span><div class="stat-value">${notes.length}</div><div class="stat-label">Notas hoy</div></div>
     </div></div>`;
 
-    // Timeline
+    // Now / En este momento
     html += `<div class="card today-full"><div class="section-title">⏰ En este momento</div>`;
     if (currentEvents.length) {
-      html += `<div style="display:flex;gap:12px;">`;
+      html += `<div style="display:flex;gap:10px;">`;
       html += `<div class="timeline-dot" style="margin-top:8px;"></div>`;
       html += `<div style="flex:1;display:flex;flex-direction:column;gap:8px;">`;
       currentEvents.forEach(ev => {
         const c = this._catStyle(ev.category);
         const recBadge = AgendaData.isRecurring(ev) ? '🔄 ' : '';
-        html += `<div class="event-row" style="border-left:3px solid ${c};" onclick="App.openEventForm('${dateStr}', ${parseInt(ev.startTime)}, '${ev.id}')">
+        html += `<div class="event-row" style="border-left:4px solid ${c};" onclick="App.openEventForm('${dateStr}', ${parseInt(ev.startTime)}, '${ev.id}')">
           <div class="event-dot" style="background:${c};"></div>
           <div class="event-info"><div class="event-title">${recBadge}${this._esc(ev.title)}</div></div>
           <span class="event-time-pill">${ev.startTime}${ev.endTime ? ' - ' + ev.endTime : ''}</span>
@@ -106,9 +113,8 @@ const UI = {
       });
       html += `</div></div>`;
     } else {
-      html += `<div style="display:flex;align-items:center;gap:12px;color:var(--text-muted);font-size:0.85rem;">
-        <div class="timeline-dot"></div>
-        <span>Sin eventos en curso</span>
+      html += `<div style="display:flex;align-items:center;gap:10px;color:var(--ios-tertiary-label);font-size:0.82rem;padding:6px 0;">
+        <div class="timeline-dot"></div><span>Sin eventos en curso</span>
       </div>`;
     }
     html += `</div>`;
@@ -116,11 +122,11 @@ const UI = {
     // Events today
     html += `<div class="card"><div class="section-title">📅 Eventos de hoy</div>`;
     if (events.length) {
-      html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
-      events.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach(ev => {
+      html += `<div style="display:flex;flex-direction:column;gap:7px;">`;
+      events.forEach(ev => {
         const c = this._catStyle(ev.category);
         const recBadge = AgendaData.isRecurring(ev) ? '🔄 ' : '';
-        html += `<div class="event-row" style="border-left:3px solid ${c};" onclick="App.openEventForm('${dateStr}', ${parseInt(ev.startTime)}, '${ev.id}')">
+        html += `<div class="event-row" style="border-left:4px solid ${c};" onclick="App.openEventForm('${dateStr}', ${parseInt(ev.startTime)}, '${ev.id}')">
           <div class="event-dot" style="background:${c};"></div>
           <div class="event-info"><div class="event-title">${recBadge}${this._esc(ev.title)}</div></div>
           <span class="event-time-pill">${ev.startTime}</span>
@@ -128,80 +134,80 @@ const UI = {
       });
       html += `</div>`;
     } else {
-      html += `<div style="color:var(--text-muted);font-size:0.85rem;">No hay eventos programados</div>`;
+      html += `<div style="color:var(--ios-tertiary-label);font-size:0.82rem;padding:8px 0;">No hay eventos programados</div>`;
     }
-    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openEventForm('${dateStr}')">+ Agregar evento</button></div>`;
+    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openEventForm('${dateStr}')" style="width:auto;">+ Agregar evento</button></div>`;
     html += `</div>`;
 
     // Tasks
-    html += `<div class="card"><div class="section-title">✅ Tareas prioritarias</div>`;
+    html += `<div class="card"><div class="section-title">✅ Tareas pendientes</div>`;
     if (todayTasks.length) {
-      html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+      html += `<div style="display:flex;flex-direction:column;gap:7px;">`;
       todayTasks.sort((a, b) => a.priority - b.priority).forEach(t => {
         const cat = AgendaData.getCategories().find(c => c.id === t.category);
-        html += `<div class="event-row" data-id="${t.id}" style="padding:10px 16px;">
+        const pColor = PRIORITY_COLORS[t.priority] || '#0a84ff';
+        html += `<div class="event-row" style="padding:10px 14px;">
           <div class="check-anim ${t.status === 'done' ? 'checked' : ''}" onclick="App.toggleTaskItem('${t.id}')">
             <svg viewBox="0 0 14 14"><polyline points="2,7 5.5,10.5 12,3.5"/></svg>
           </div>
-          <div class="event-info" onclick="App.openTaskForm('${t.id}')"><div class="event-title">${this._esc(t.title)}</div></div>
-          <span class="badge badge-p${t.priority}">${PRIORITIES[t.priority].split(' ')[0]}</span>
-          ${cat ? `<span class="badge badge-cat">${cat.icon}</span>` : ''}
+          <div class="event-info" onclick="App.openTaskForm('${t.id}')" style="cursor:pointer;"><div class="event-title">${this._esc(t.title)}</div></div>
+          <span class="badge badge-p${t.priority}" style="background:rgba(${pColor === '#ff453a' ? '255,69,58' : pColor === '#ff9f0a' ? '255,159,10' : pColor === '#0a84ff' ? '10,132,255' : '142,142,147'},0.12);color:${pColor}">${PRIORITIES[t.priority].split(' ')[0]}</span>
+          ${cat ? `<span class="badge badge-cat">${this._esc(cat.icon)}</span>` : ''}
         </div>`;
       });
       html += `</div>`;
     } else {
-      html += `<div style="color:var(--text-muted);font-size:0.85rem;">No hay tareas para hoy</div>`;
+      html += `<div style="color:var(--ios-tertiary-label);font-size:0.82rem;padding:8px 0;">No hay tareas para hoy</div>`;
     }
-    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openTaskForm()">+ Nueva tarea</button></div>`;
+    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openTaskForm()" style="width:auto;">+ Nueva tarea</button></div>`;
     html += `</div>`;
 
     // Habits today
-    html += `<div class="card"><div class="section-title">🔄 Hábitos de hoy</div><div style="display:flex;flex-direction:column;gap:8px;">`;
+    html += `<div class="card"><div class="section-title">🔄 Hábitos de hoy</div><div style="display:flex;flex-direction:column;gap:7px;">`;
     if (habits.length) {
       habits.forEach(h => {
         const done = h.logs && h.logs[dateStr];
-        html += `<div class="event-row" style="padding:8px 14px;cursor:default;" data-id="${h.id}">
-          <div class="habit-cell ${done ? 'done' : ''} today" style="width:26px;height:26px;flex-shrink:0;cursor:pointer;" onclick="App.toggleHabitItem('${h.id}','${dateStr}')"></div>
-          <div class="event-info"><span style="font-size:0.88rem;color:var(--text-primary);">${this._esc(h.name)}</span></div>
+        html += `<div class="event-row" style="padding:9px 14px;cursor:default;" data-id="${h.id}">
+          <div class="habit-cell ${done ? 'done' : ''} today" style="width:28px;height:28px;flex-shrink:0;cursor:pointer;" onclick="App.toggleHabitItem('${h.id}','${dateStr}')"></div>
+          <div class="event-info"><span style="font-size:0.9rem;color:var(--ios-label);">${this._esc(h.name)}</span></div>
           ${h.streak > 0 ? `<span class="streak-pill">🔥 ${h.streak}</span>` : ''}
         </div>`;
       });
     } else {
-      html += `<div style="color:var(--text-muted);font-size:0.85rem;">Sin hábitos creados</div>`;
+      html += `<div style="color:var(--ios-tertiary-label);font-size:0.82rem;padding:8px 0;">Sin hábitos creados</div>`;
     }
-    html += `<div style="margin-top:8px;"><button class="btn-primary btn-sm" onclick="App.openHabitForm()">+ Nuevo hábito</button></div>`;
+    html += `<div style="margin-top:8px;"><button class="btn-primary btn-sm" onclick="App.openHabitForm()" style="width:auto;">+ Nuevo hábito</button></div>`;
     html += `</div></div>`;
 
     // Notes today
     html += `<div class="card"><div class="section-title">📝 Notas rápidas</div>`;
     if (notes.length) {
-      html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+      html += `<div style="display:flex;flex-direction:column;gap:7px;">`;
       notes.forEach(n => {
         const hash = n.title ? n.title.length + (n.content ? n.content.length : 0) : 0;
-        const colors = ['#6C63FF','#00D4FF','#FF6B9D','#2ECC71','#FFA46C','#CE93D8'];
+        const colors = ['#0a84ff','#00c2a9','#ff375f','#32d74b','#ff9f0a','#bf5af2'];
         const accent = colors[hash % colors.length];
-        html += `<div class="event-row" style="border-left:3px solid ${accent};padding:10px 14px;" onclick="App.openNoteForm('${n.id}')">
-          <div class="event-info">
+        html += `<div class="event-row" style="border-left:4px solid ${accent};padding:10px 14px;" onclick="App.openNoteForm('${n.id}')">
+          <div class="event-info" style="cursor:pointer;">
             <div class="event-title">${this._esc(n.title || 'Sin título')}</div>
-            ${n.content ? `<div style="font-size:0.76rem;color:var(--text-secondary);margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${this._esc(n.content)}</div>` : ''}
+            ${n.content ? `<div style="font-size:0.74rem;color:var(--ios-secondary-label);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${this._esc(n.content)}</div>` : ''}
           </div>
           <span class="event-time-pill">${n.date ? this._formatDateShort(n.date) : ''}</span>
         </div>`;
       });
       html += `</div>`;
     } else {
-      html += `<div style="color:var(--text-muted);font-size:0.85rem;">Sin notas hoy</div>`;
+      html += `<div style="color:var(--ios-tertiary-label);font-size:0.82rem;padding:8px 0;">Sin notas hoy</div>`;
     }
-    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openNoteForm()">+ Nueva nota</button></div>`;
+    html += `<div style="margin-top:12px;"><button class="btn-primary btn-sm" onclick="App.openNoteForm()" style="width:auto;">+ Nueva nota</button></div>`;
     html += `</div>`;
 
     html += `</div></div>`;
     return html;
   },
 
+  // ---------- Calendar shell ----------
   renderCalendar(state) {
-    const d = state.currentDate;
-    const dateStr = this._toDateStr(d);
     const mode = state.calendarMode || 'day';
     const modes = [
       { key: 'day', label: 'Día' },
@@ -212,18 +218,13 @@ const UI = {
     modes.forEach(m => {
       html += `<button class="cal-tab ${m.key === mode ? 'active' : ''}" onclick="App.setCalendarMode('${m.key}')">${m.label}</button>`;
     });
-    html += `</div><div class="cal-content"></div>`;
+    html += `</div><div class="cal-content">`;
 
-    // Render the active sub-view content
-    if (mode === 'day') {
-      html += this._renderDailyInner(state);
-    } else if (mode === 'week') {
-      html += this._renderWeeklyInner(state);
-    } else if (mode === 'month') {
-      html += this._renderMonthlyInner(state);
-    }
+    if (mode === 'day') html += this._renderDailyInner(state);
+    else if (mode === 'week') html += this._renderWeeklyInner(state);
+    else if (mode === 'month') html += this._renderMonthlyInner(state);
 
-    html += `</div>`;
+    html += `</div></div>`;
     return html;
   },
 
@@ -231,6 +232,7 @@ const UI = {
     return `<div class="view">${this._renderDailyInner(state)}</div>`;
   },
 
+  // ---------- Daily (hourly) ----------
   _renderDailyInner(state) {
     const dateStr = this._toDateStr(state.currentDate);
     const events = AgendaData.getEventsByDate(dateStr);
@@ -289,6 +291,7 @@ const UI = {
     return html;
   },
 
+  // ---------- Weekly ----------
   renderWeekly(state) {
     return `<div class="view">${this._renderWeeklyInner(state)}</div>`;
   },
@@ -318,7 +321,6 @@ const UI = {
     }
 
     const currentMonth = state.currentDate.getMonth();
-
     let html = `<div class="week-grid">`;
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
@@ -339,13 +341,13 @@ const UI = {
             const cat = AgendaData.getCategories().find(c => c.id === ev.category);
             const c = cat ? cat.color : '#666';
             const recBadge = AgendaData.isRecurring(ev) ? '🔄' : '';
-            return `<div class="week-event" style="background:${c}33;border-left:2px solid ${c}">${recBadge} ${UI._esc(ev.title)}</div>`;
+            return `<div class="week-event" style="background:${c}22;border-left:2px solid ${c};color:${c}">${recBadge} ${UI._esc(ev.title)}</div>`;
           }).join('')}
           ${dayEvents.length > 0 ? `<div class="week-dots">${cats.map(c => {
             const cat = AgendaData.getCategories().find(ca => ca.id === c);
             return `<div class="month-dot" style="background:${cat ? cat.color : '#666'}"></div>`;
           }).join('')}</div>` : ''}
-          ${dayEvents.length > 3 ? `<div style="font-size:0.68rem;color:var(--text-muted);text-align:center;">+${dayEvents.length - 3} más</div>` : ''}
+          ${dayEvents.length > 3 ? `<div style="font-size:0.64rem;color:var(--ios-tertiary-label);text-align:center;">+${dayEvents.length - 3} más</div>` : ''}
         </div>
       </div>`;
     }
@@ -353,6 +355,7 @@ const UI = {
     return html;
   },
 
+  // ---------- Monthly ----------
   renderMonthly(state) {
     return `<div class="view">${this._renderMonthlyInner(state)}</div>`;
   },
@@ -365,12 +368,9 @@ const UI = {
 
     const firstDay = new Date(year, month, 1);
     const startPad = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-
     const startDate = new Date(year, month, 1 - startPad);
     const endDate = new Date(year, month + 1, 0);
-    if (endDate.getDay() !== 0) {
-      endDate.setDate(endDate.getDate() + (7 - endDate.getDay()));
-    }
+    if (endDate.getDay() !== 0) endDate.setDate(endDate.getDate() + (7 - endDate.getDay()));
 
     const allEvents = AgendaData.getEvents();
     const eventMap = {};
@@ -419,22 +419,23 @@ const UI = {
     return html;
   },
 
+  // ---------- Gym ----------
   renderGym(state) {
     const routines = AgendaData.getGymRoutines();
 
     let html = `<div class="view"><div class="view-header">
       <div class="view-title">🏋️ Gimnasio</div>
       <div class="view-actions">
-        <button class="btn-primary" onclick="App.openGymForm()">+ Nuevo entrenamiento</button>
+        <button class="btn-primary" onclick="App.openGymForm()" style="width:auto;">+ Entrenamiento</button>
       </div>
     </div>`;
 
     if (routines.length === 0) {
-      html += `<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
-        <div style="font-size:4rem;margin-bottom:16px;">🏋️</div>
-        <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px;color:var(--text-primary);">Todavía no hay entrenamientos</div>
-        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px;">Registrá tu primera rutina de gym</div>
-        <button class="btn-primary" onclick="App.openGymForm()">💪 Empezar entrenamiento</button>
+      html += `<div class="empty-state">
+        <div class="empty-icon">🏋️</div>
+        <div class="empty-title">Sin entrenamientos</div>
+        <div class="empty-sub">Registrá tu primera rutina de gimnasio</div>
+        <button class="btn-primary" onclick="App.openGymForm()" style="width:auto;">💪 Empezar entrenamiento</button>
       </div></div>`;
       return html;
     }
@@ -467,23 +468,23 @@ const UI = {
     return html;
   },
 
+  // ---------- Trips ----------
   renderTrips(state) {
     const trips = AgendaData.getDreamTrips();
-    const categories = AgendaData.getCategories();
 
     let html = `<div class="view"><div class="view-header">
       <div class="view-title">✈️ Viajes Soñados</div>
       <div class="view-actions">
-        <button class="btn-primary" onclick="App.openTripForm()">+ Nuevo viaje</button>
+        <button class="btn-primary" onclick="App.openTripForm()" style="width:auto;">+ Viaje</button>
       </div>
     </div>`;
 
     if (trips.length === 0) {
-      html += `<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
-        <div style="font-size:4rem;margin-bottom:16px;">✈️</div>
-        <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px;">Todavía no hay viajes soñados</div>
-        <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px;">Agregá tu primer destino y empezá a planear</div>
-        <button class="btn-primary" onclick="App.openTripForm()">🌍 Agregar destino</button>
+      html += `<div class="empty-state">
+        <div class="empty-icon">✈️</div>
+        <div class="empty-title">Sin viajes soñados</div>
+        <div class="empty-sub">Agregá tu primer destino y empezá a planear</div>
+        <button class="btn-primary" onclick="App.openTripForm()" style="width:auto;">🌍 Agregar destino</button>
       </div></div>`;
       return html;
     }
@@ -518,6 +519,7 @@ const UI = {
     return html;
   },
 
+  // ---------- Goals ----------
   renderGoals(state) {
     const goals = AgendaData.getGoals();
     const filter = state.goalFilter || 'all';
@@ -532,13 +534,17 @@ const UI = {
           <option value="monthly" ${filter === 'monthly' ? 'selected' : ''}>Mensuales</option>
           <option value="weekly" ${filter === 'weekly' ? 'selected' : ''}>Semanales</option>
         </select>
-        <button class="btn-primary" onclick="App.openGoalForm()">+ Nueva meta</button>
+        <button class="btn-primary" onclick="App.openGoalForm()" style="width:auto;">+ Meta</button>
       </div>
     </div><div class="goals-grid">`;
 
     const filtered = filter === 'all' ? goals : goals.filter(g => g.timeframe === filter);
     if (filtered.length === 0) {
-      html += `<div style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:40px;">No hay metas. ¡Crea tu primera meta!</div>`;
+      html += `<div class="empty-state" style="padding:40px 20px;">
+        <div class="empty-icon">🎯</div>
+        <div class="empty-title">Sin metas</div>
+        <div class="empty-sub">¡Crea tu primera meta!</div>
+      </div>`;
     }
     const timeframeLabels = { yearly: 'Anual', quarterly: 'Trimestral', monthly: 'Mensual', weekly: 'Semanal' };
     filtered.forEach(g => {
@@ -550,13 +556,13 @@ const UI = {
             <div class="goal-hero-title">${this._esc(g.title)}</div>
             <div class="goal-hero-meta">
               <span class="badge badge-cat">${timeframeLabels[g.timeframe] || g.timeframe}</span>
-              ${g.targetDate ? `<span style="margin-left:8px;">📅 ${this._formatDateShort(g.targetDate)}</span>` : ''}
+              ${g.targetDate ? `<span style="font-size:0.7rem;">📅 ${this._formatDateShort(g.targetDate)}</span>` : ''}
             </div>
           </div>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:${g.progress}%;${cat ? `background:${cat.color};` : ''}"></div></div>
         <div class="goal-progress-text">${g.progress}% completado</div>
-        ${g.description ? `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px;">${this._esc(g.description)}</div>` : ''}
+        ${g.description ? `<div style="font-size:0.8rem;color:var(--ios-secondary-label);margin-top:8px;line-height:1.5;">${this._esc(g.description)}</div>` : ''}
         ${g.milestones && g.milestones.length ? `<div class="milestones">
           ${g.milestones.map((m, i) => `
             <div class="milestone ${m.done ? 'done' : ''}">
@@ -566,8 +572,8 @@ const UI = {
           `).join('')}
         </div>` : ''}
         <div style="display:flex;gap:8px;margin-top:14px;">
-          <button class="btn-secondary btn-sm" onclick="App.openGoalForm('${g.id}')">✏️ Editar</button>
-          <button class="btn-danger btn-sm" onclick="App.deleteGoalItem('${g.id}')">🗑️ Eliminar</button>
+          <button class="btn-secondary btn-sm" onclick="App.openGoalForm('${g.id}')" style="flex:1;">✏️ Editar</button>
+          <button class="btn-danger btn-sm" onclick="App.deleteGoalItem('${g.id}')" style="flex:1;">🗑️ Eliminar</button>
         </div>
       </div>`;
     });
@@ -575,6 +581,7 @@ const UI = {
     return html;
   },
 
+  // ---------- Tasks ----------
   renderTasks(state) {
     const tasks = AgendaData.getTasks();
     const { taskFilterCat, taskFilterPri, taskFilterStatus } = state;
@@ -613,27 +620,32 @@ const UI = {
           <option value="pending" ${state.taskFilterStatus === 'pending' ? 'selected' : ''}>Pendientes</option>
           <option value="done" ${state.taskFilterStatus === 'done' ? 'selected' : ''}>Completadas</option>
         </select>
-        <button class="btn-primary" onclick="App.openTaskForm()">+ Nueva tarea</button>
+        <button class="btn-primary" onclick="App.openTaskForm()" style="width:auto;">+ Tarea</button>
       </div>
     </div><div class="tasks-list">`;
 
     if (filtered.length === 0) {
-      html += `<div style="color:var(--text-muted);text-align:center;padding:40px;">No hay tareas con estos filtros</div>`;
+      html += `<div class="empty-state" style="padding:30px 20px;">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">${state.taskFilterStatus || state.taskFilterCat || state.taskFilterPri ? 'Sin resultados' : 'Sin tareas'}</div>
+        <div class="empty-sub">${state.taskFilterStatus || state.taskFilterCat || state.taskFilterPri ? 'Ajustá los filtros' : '¡Crea tu primera tarea!'} </div>
+      </div>`;
     }
     filtered.forEach(t => {
       const cat = cats.find(c => c.id === t.category);
+      const pColor = PRIORITY_COLORS[t.priority] || '#0a84ff';
       html += `<div class="task-item priority-p${t.priority} ${t.status === 'done' ? 'done' : ''}" data-id="${t.id}">
         <div class="check-anim ${t.status === 'done' ? 'checked' : ''}" onclick="App.toggleTaskItem('${t.id}')" style="cursor:pointer;">
           <svg viewBox="0 0 14 14"><polyline points="2,7 5.5,10.5 12,3.5"/></svg>
         </div>
-        <div class="task-info" onclick="App.openTaskForm('${t.id}')">
+        <div class="task-info" onclick="App.openTaskForm('${t.id}')" style="cursor:pointer;">
           <div class="task-title">${this._esc(t.title)}</div>
           <div class="task-meta">
-            ${cat ? `<span>${cat.icon} ${cat.label}</span>` : ''}
+            ${cat ? `<span>${this._esc(cat.icon)} ${this._esc(cat.label)}</span>` : ''}
             ${t.dueDate ? `<span>📅 ${this._formatDateShort(t.dueDate)}</span>` : ''}
           </div>
         </div>
-        <span class="badge badge-p${t.priority}">${PRIORITIES[t.priority]}</span>
+        <span class="badge badge-p${t.priority}" style="background:rgba(${pColor === '#ff453a' ? '255,69,58' : pColor === '#ff9f0a' ? '255,159,10' : pColor === '#0a84ff' ? '10,132,255' : '142,142,147'},0.12);color:${pColor}">${PRIORITIES[t.priority]}</span>
         <div class="task-actions">
           <button class="btn-secondary btn-sm" onclick="event.stopPropagation();App.openTaskForm('${t.id}')">✏️</button>
           <button class="btn-danger btn-sm" onclick="event.stopPropagation();App.deleteTaskItem('${t.id}')">🗑️</button>
@@ -644,6 +656,7 @@ const UI = {
     return html;
   },
 
+  // ---------- Habits ----------
   renderHabits(state) {
     const habits = AgendaData.getHabits();
     const today = new Date();
@@ -658,28 +671,33 @@ const UI = {
     let html = `<div class="view"><div class="view-header">
       <div class="view-title">🔄 Hábitos</div>
       <div class="view-actions">
-        <button class="btn-primary" onclick="App.openHabitForm()">+ Nuevo hábito</button>
+        <button class="btn-primary" onclick="App.openHabitForm()" style="width:auto;">+ Hábito</button>
       </div>
     </div>`;
 
     if (habits.length === 0) {
-      html += `<div style="color:var(--text-muted);text-align:center;padding:40px;">No hay hábitos. ¡Crea tu primer hábito!</div></div>`;
+      html += `<div class="empty-state">
+        <div class="empty-icon">🔄</div>
+        <div class="empty-title">Sin hábitos</div>
+        <div class="empty-sub">¡Crea tu primer hábito!</div>
+        <button class="btn-primary" onclick="App.openHabitForm()" style="width:auto;">+ Nuevo hábito</button>
+      </div></div>`;
       return html;
     }
 
-    html += `<div class="habits-table-wrap"><table class="habits-table"><thead><tr><th style="text-align:left;min-width:140px;">Hábito</th>
+    html += `<div class="habits-table-wrap"><table class="habits-table"><thead><tr><th style="text-align:left;min-width:150px;">Hábito</th>
       ${days.map(d => {
         const isToday = this._toDateStr(d) === todayStr;
-        return `<th style="font-weight:${isToday ? '700' : '500'};color:${isToday ? 'var(--accent-1)' : 'var(--text-muted)'};">${d.getDate()}</th>`;
+        return `<th style="font-weight:${isToday ? '700' : '500'};color:${isToday ? 'var(--ios-blue)' : 'var(--ios-tertiary-label)'};">${d.getDate()}</th>`;
       }).join('')}
-      <th style="color:var(--text-muted);">🔥</th>
+      <th style="color:var(--ios-tertiary-label);">🔥</th>
     </tr></thead><tbody>`;
 
     habits.forEach(h => {
       const streak = h.streak || 0;
       html += `<tr><td class="habit-name">
         <span style="display:flex;align-items:center;gap:8px;">
-          <span>${this._esc(h.name)}</span>
+          <span style="color:var(--ios-label);">${this._esc(h.name)}</span>
           ${streak > 0 ? `<span class="streak-pill">🔥 ${streak}</span>` : ''}
         </span>
       </td>`;
@@ -689,19 +707,20 @@ const UI = {
         const isToday = dStr === todayStr;
         html += `<td><div class="habit-cell ${done ? 'done' : ''} ${isToday ? 'today' : ''}" onclick="App.toggleHabitItem('${h.id}','${dStr}')"></div></td>`;
       });
-      html += `<td style="text-align:center;font-size:0.78rem;color:var(--text-muted);">${h.frequency === 'weekly' ? '📅' : '🔄'}</td>`;
+      html += `<td style="text-align:center;font-size:0.78rem;color:var(--ios-tertiary-label);">${h.frequency === 'weekly' ? '📅' : '🔄'}</td>`;
       html += `</tr>`;
     });
 
     html += `</tbody></table></div>`;
-    html += `<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">`;
+    html += `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">`;
     habits.forEach(h => {
-      html += `<button class="btn-secondary btn-sm" onclick="App.openHabitForm('${h.id}')">✏️ ${this._esc(h.name)}</button>`;
+      html += `<button class="btn-secondary btn-sm" onclick="App.openHabitForm('${h.id}')" style="flex:1;min-width:120px;">✏️ ${this._esc(h.name)}</button>`;
     });
     html += `</div></div>`;
     return html;
   },
 
+  // ---------- Notes ----------
   renderNotes(state) {
     const notes = AgendaData.getNotes();
     const query = state.notesQuery || '';
@@ -711,19 +730,23 @@ const UI = {
     let html = `<div class="view"><div class="view-header">
       <div class="view-title">📝 Notas</div>
       <div class="view-actions">
-        <input type="text" placeholder="Buscar notas..." value="${this._esc(query)}" oninput="App.setNotesQuery(this.value)" style="width:200px;">
-        <button class="btn-primary" onclick="App.openNoteForm()">+ Nueva nota</button>
+        <input type="text" placeholder="Buscar notas..." value="${this._esc(query)}" oninput="App.setNotesQuery(this.value)" style="width:170px;">
+        <button class="btn-primary" onclick="App.openNoteForm()" style="width:auto;">+ Nota</button>
       </div>
     </div><div class="notes-grid">`;
 
     if (filtered.length === 0) {
-      html += `<div style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:40px;">${query ? 'Sin resultados' : 'No hay notas. ¡Crea tu primera nota!'}</div>`;
+      html += `<div class="empty-state" style="padding:30px 20px;">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">${query ? 'Sin resultados' : 'Sin notas'}</div>
+        <div class="empty-sub">${query ? 'Probá con otro término' : '¡Crea tu primera nota!'}</div>
+      </div>`;
     }
     filtered.forEach(n => {
       const hash = n.title ? n.title.length + (n.content ? n.content.length : 0) : 0;
-      const colors = ['#6C63FF','#00D4FF','#FF6B9D','#2ECC71','#FFA46C','#CE93D8'];
+      const colors = ['#0a84ff','#00c2a9','#ff375f','#32d74b','#ff9f0a','#bf5af2'];
       const accent = colors[hash % colors.length];
-      html += `<div class="note-card" style="border-left:3px solid ${accent};" onclick="App.openNoteForm('${n.id}')">
+      html += `<div class="note-card" style="border-left:4px solid ${accent};" onclick="App.openNoteForm('${n.id}')">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
           <span class="note-date">${n.date ? this._formatDateShort(n.date) : ''}</span>
           ${n.tags && n.tags.length ? n.tags.slice(0, 2).map(t => `<span class="tag">${this._esc(t)}</span>`).join('') : ''}
@@ -736,7 +759,127 @@ const UI = {
     return html;
   },
 
-  // ---------- Modal forms ----------
+  // ============================================================
+  // SEARCH VIEW
+  // ============================================================
+  renderSearch(state) {
+    const query = state.searchQuery || '';
+    const results = query ? AgendaData.searchAll(query) : { events: [], tasks: [], goals: [], habits: [], notes: [], trips: [] };
+    const total = results.events.length + results.tasks.length + results.goals.length + results.habits.length + results.notes.length + results.trips.length;
+
+    let html = `<div class="view"><div class="view-header">
+      <div class="view-title">🔍 Buscar</div>
+      <div class="view-actions"></div>
+    </div>`;
+
+    html += `<div class="form-group" style="margin-bottom:14px;">
+      <label>Buscar en todo</label>
+      <input class="form-control" type="text" id="searchQuery" placeholder="Eventos, tareas, notas…" value="${this._esc(query)}" oninput="App.setSearchQuery(this.value)" autofocus>
+    </div>`;
+
+    if (!query) {
+      html += `<div class="empty-state" style="padding:40px 20px;">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Buscá en tu agenda</div>
+        <div class="empty-sub">Eventos, tareas, metas, hábitos, notas y viajes</div>
+      </div></div>`;
+      return html;
+    }
+
+    if (total === 0) {
+      html += `<div class="empty-state" style="padding:30px 20px;">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Sin resultados</div>
+        <div class="empty-sub">No se encontró nada con "${this._esc(query)}"</div>
+      </div></div>`;
+      return html;
+    }
+
+    html += `<div style="font-size:0.72rem;color:var(--ios-tertiary-label);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding:0 4px;">${total} resultado${total !== 1 ? 's' : ''}</div>`;
+
+    const cat = (id) => AgendaData.getCategories().find(c => c.id === id);
+
+    if (results.events.length) {
+      html += `<div class="section-title" style="margin-top:12px;">📅 Eventos</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.events.forEach(ev => {
+        const c = this._catStyle(ev.category);
+        html += `<div class="event-row" style="border-left:4px solid ${c};cursor:pointer;" onclick="App.goToDate('${ev.date}');App.switchView('daily');UI.hideModal();">
+          <div class="event-dot" style="background:${c};"></div>
+          <div class="event-info"><div class="event-title">${this._esc(ev.title)}</div><div style="font-size:0.72rem;color:var(--ios-tertiary-label);margin-top:2px;">${this._formatDateShort(ev.date)} • ${ev.startTime}</div></div>
+          <span class="event-time-pill">${ev.startTime}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (results.tasks.length) {
+      html += `<div class="section-title">✅ Tareas</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.tasks.forEach(t => {
+        const c = cat(t.category);
+        const pColor = PRIORITY_COLORS[t.priority] || '#0a84ff';
+        html += `<div class="event-row" style="padding:10px 14px;cursor:pointer;" onclick="App.switchView('tasks');UI.hideModal();">
+          <div class="check-anim ${t.status === 'done' ? 'checked' : ''}" style="cursor:default;">
+            <svg viewBox="0 0 14 14"><polyline points="2,7 5.5,10.5 12,3.5"/></svg>
+          </div>
+          <div class="event-info"><div class="event-title">${this._esc(t.title)}</div></div>
+          <span class="badge badge-p${t.priority}" style="background:rgba(${pColor === '#ff453a' ? '255,69,58' : pColor === '#ff9f0a' ? '255,159,10' : pColor === '#0a84ff' ? '10,132,255' : '142,142,147'},0.12);color:${pColor}">${PRIORITIES[t.priority].split(' ')[0]}</span>
+          ${c ? `<span class="badge badge-cat">${this._esc(c.icon)}</span>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (results.notes.length) {
+      html += `<div class="section-title">📝 Notas</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.notes.forEach(n => {
+        const hash = n.title ? n.title.length + (n.content ? n.content.length : 0) : 0;
+        const colors = ['#0a84ff','#00c2a9','#ff375f','#32d74b','#ff9f0a','#bf5af2'];
+        const accent = colors[hash % colors.length];
+        html += `<div class="event-row" style="border-left:4px solid ${accent};padding:10px 14px;cursor:pointer;" onclick="App.switchView('notes');UI.hideModal();">
+          <div class="event-info"><div class="event-title">${this._esc(n.title || 'Sin título')}</div></div>
+          <span class="event-time-pill">${n.date ? this._formatDateShort(n.date) : ''}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (results.goals.length) {
+      html += `<div class="section-title">🎯 Metas</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.goals.forEach(g => {
+        html += `<div class="event-row" style="padding:10px 14px;cursor:pointer;" onclick="App.switchView('goals');UI.hideModal();">
+          <div class="event-info"><div class="event-title">${this._esc(g.title)}</div><div style="font-size:0.72rem;color:var(--ios-tertiary-label);margin-top:2px;">${g.progress}% completado</div></div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (results.habits.length) {
+      html += `<div class="section-title">🔄 Hábitos</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.habits.forEach(h => {
+        html += `<div class="event-row" style="padding:10px 14px;cursor:pointer;" onclick="App.switchView('habits');UI.hideModal();">
+          <div class="event-info"><div class="event-title">${this._esc(h.name)}</div><div style="font-size:0.72rem;color:var(--ios-tertiary-label);margin-top:2px;">Racha: ${h.streak || 0} días</div></div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (results.trips.length) {
+      html += `<div class="section-title">✈️ Viajes</div><div style="display:flex;flex-direction:column;gap:7px;">`;
+      results.trips.forEach(t => {
+        html += `<div class="event-row" style="padding:10px 14px;cursor:pointer;" onclick="App.switchView('trips');UI.hideModal();">
+          <div class="event-info"><div class="event-title">${this._esc(t.destination)}</div><div style="font-size:0.72rem;color:var(--ios-tertiary-label);margin-top:2px;">${t.country || ''}</div></div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  },
+
+  // ============================================================
+  // MODALS & FORMS
+  // ============================================================
 
   showModal(title, bodyHtml, footerHtml) {
     document.getElementById('modalTitle').textContent = title;
@@ -765,6 +908,7 @@ const UI = {
     document.getElementById('confirmModal').classList.add('hidden');
   },
 
+  // ---------- Trip form ----------
   openTripForm(tripId) {
     this._currentTripId = tripId || null;
     const t = tripId ? AgendaData.getDreamTrips().find(t => t.id === tripId) : null;
@@ -788,27 +932,24 @@ const UI = {
         <div class="trip-hero-content">
           ${t.emoji ? `<span class="trip-emoji">${t.emoji}</span>` : ''}
           <div class="trip-name" style="color:#fff;">${this._esc(t.destination || '')}</div>
-          <div class="trip-country" style="color:rgba(255,255,255,0.6);">${this._esc(t.country || '')}</div>
+          <div class="trip-country" style="color:rgba(255,255,255,0.7);">${this._esc(t.country || '')}</div>
         </div>
       </div>`;
 
-      // Gallery
       let galleryHtml = `<div class="trip-gallery">`;
       images.forEach((img, i) => {
         galleryHtml += `<img class="trip-gallery-img ${i === 0 ? 'active' : ''}" src="${this._esc(img)}" onclick="document.getElementById('tripHero').style.backgroundImage='url(${this._esc(img)})';document.querySelectorAll('.trip-gallery-img').forEach(e=>e.classList.remove('active'));this.classList.add('active')">`;
       });
       galleryHtml += `<div class="trip-gallery-add" onclick="document.getElementById('tripPhotoInput').click()">+</div>`;
       galleryHtml += `</div>`;
-
       heroImgHtml += galleryHtml;
     }
 
-    // Bucket list
     let bucketHtml = '';
     if (isEdit && bucketItems.length > 0) {
       bucketHtml += `<div class="trip-section"><div class="trip-section-title">📋 Bucket list</div>`;
       bucketItems.forEach((item, i) => {
-        bucketHtml += `<div class="bucket-item ${item.done ? 'done' : ''}" onclick="App.toggleBucketItem('${t.id}', ${i})">
+        bucketHtml += `<div class="bucket-item ${item.done ? 'done' : ''}" style="cursor:pointer;" onclick="App.toggleBucketItem('${t.id}', ${i})">
           <span class="bucket-check ${item.done ? 'checked' : ''}">${item.done ? '✓' : ''}</span>
           ${this._esc(item.title)}
         </div>`;
@@ -825,23 +966,27 @@ const UI = {
       </div>
       <div class="form-row">
         ${this._formField('Emoji / Bandera', `<select class="form-control" id="tripEmoji">${emojis.map(e => `<option value="${e}" ${t && t.emoji === e ? 'selected' : ''}>${e}</option>`).join('')}</select>`)}
-        ${this._formField('Inspiración', `<input class="form-control" id="tripInspo" value="${this._esc(t ? t.inspiration || '' : '')}" placeholder="Link o nota de inspiración">`)}
+        ${this._formField('Inspiración', `<input class="form-control" id="tripInspo" value="${this._esc(t ? t.inspiration || '' : '')}" placeholder="Link o nota">`)}
       </div>
       ${this._formField('Notas / Por qué quiero ir', `<textarea class="form-control" id="tripNotes" rows="2">${t ? this._esc(t.notes || '') : ''}</textarea>`)}
-      ${!isEdit ? `<div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;">✏️ Después de crear el viaje podés subir fotos y agregar tu bucket list.</div>` : ''}
+      ${!isEdit ? `<div style="font-size:0.78rem;color:var(--ios-tertiary-label);margin-bottom:10px;">✏️ Después de crear el viaje podés subir fotos y armar tu bucket list.</div>` : ''}
       <input type="file" id="tripPhotoInput" accept="image/*" style="display:none" onchange="App.addTripPhoto(event)">
       ${isEdit ? `
         <div class="trip-section"><div class="trip-section-title">📋 Bucket list</div>
-        <div id="bucketListContainer">${bucketHtml || '<div style="color:var(--text-muted);font-size:0.85rem;">Sin items todavía. Agregá cosas que querés hacer allí.</div>'}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;">
+        <div id="bucketListContainer">${bucketHtml || '<div style="color:var(--ios-tertiary-label);font-size:0.82rem;">Sin ítems todavía. Agregá cosas que querés hacer allí.</div>'}</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
           <input class="form-control" id="newBucketItem" placeholder="Ej: Subir a la Torre Eiffel" style="flex:1;" onkeydown="if(event.key==='Enter')App.addBucketItem('${t.id}')">
-          <button class="btn-primary btn-sm" onclick="App.addBucketItem('${t.id}')">+</button>
-        </div></div>
+          <button class="btn-primary btn-sm" onclick="App.addBucketItem('${t.id}')" style="width:auto;">+</button>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;">
+          <button class="btn-secondary btn-sm" onclick="App.removeLastBucketItem('${t.id}')" style="flex:1;">🗑️ Último ítem</button>
+        </div>
+      </div>
       ` : ''}
     `;
 
     const footer = `
-      ${isEdit ? `<button class="btn-danger" onclick="App.deleteTripItem('${t.id}')">Eliminar</button>` : ''}
+      ${isEdit ? `<button class="btn-danger" onclick="App.deleteTripItem('${t.id}')">Eliminar viaje</button>` : ''}
       <button class="btn-secondary" onclick="UI.hideModal()">Cancelar</button>
       <button class="btn-primary" onclick="App.saveTripForm('${t ? t.id : ''}')">${isEdit ? 'Guardar' : 'Crear viaje'}</button>
     `;
@@ -850,14 +995,16 @@ const UI = {
     if (!isEdit) setTimeout(() => document.getElementById('tripDest')?.focus(), 100);
   },
 
-  _formField(label, html, cls = '') {
-    return `<div class="form-group ${cls}"><label>${label}</label>${html}</div>`;
+  removeLastBucketItem(tripId) {
+    const trip = AgendaData.getDreamTrips().find(t => t.id === tripId);
+    if (!trip || !trip.bucketList || trip.bucketList.length === 0) return;
+    trip.bucketList.pop();
+    AgendaData.updateDreamTrip(tripId, { bucketList: trip.bucketList });
+    UI.openTripForm(tripId);
+    UI.toast('🗑️ Ítem eliminado');
   },
 
-  _select(options, value, attrs = '') {
-    return `<select ${attrs}>${options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`;
-  },
-
+  // ---------- Event form ----------
   openEventForm(dateStr, hour, eventId, isOverride) {
     const ev = eventId ? AgendaData.getEvents().find(e => e.id === eventId) : null;
     const cats = AgendaData.getCategories();
@@ -867,10 +1014,10 @@ const UI = {
     const recOptions = [
       { value: 'none', label: 'No repetir' },
       { value: 'daily', label: 'Todos los días' },
-      { value: 'weekdays', label: 'Lun-Vie (entre semana)' },
-      { value: 'weekends', label: 'Sáb-Dom (fin de semana)' },
-      { value: 'weekly', label: 'Semanal (mismo día)' },
-      { value: 'custom', label: 'Personalizado (elegir días)' },
+      { value: 'weekdays', label: 'Lun-Vie' },
+      { value: 'weekends', label: 'Sáb-Dom' },
+      { value: 'weekly', label: 'Semanal' },
+      { value: 'custom', label: 'Días personalizados' },
     ];
 
     const body = `
@@ -888,17 +1035,17 @@ const UI = {
         ${this._formField('Repite', this._select(recOptions, ev ? ev.recurrence : 'none', 'class="form-control" id="evRecurrence" onchange="UI.toggleCustomDays()"'))}
       </div>
       <div id="evCustomDays" style="display:${ev && ev.recurrence === 'custom' ? 'block' : 'none'};margin-bottom:14px;">
-        <label style="font-size:0.8rem;color:#888;display:block;margin-bottom:6px;">Días de la semana</label>
+        <label style="font-size:0.74rem;color:var(--ios-tertiary-label);display:block;margin-bottom:6px;">Días de la semana</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map((d, i) => `
-            <label style="display:flex;flex-direction:column;align-items:center;font-size:0.75rem;color:#aaa;cursor:pointer;gap:2px;">
-              <input type="checkbox" value="${i}" ${ev && ev.recurrenceDays && ev.recurrenceDays.includes(i) ? 'checked' : ''} class="custom-day-cb" style="width:16px;height:16px;cursor:pointer;">
+            <label style="display:flex;flex-direction:column;align-items:center;font-size:0.72rem;color:var(--ios-secondary-label);cursor:pointer;gap:3px;">
+              <input type="checkbox" value="${i}" ${ev && ev.recurrenceDays && ev.recurrenceDays.includes(i) ? 'checked' : ''} class="custom-day-cb" style="width:18px;height:18px;cursor:pointer;accent-color:var(--ios-blue);">
               ${d}
             </label>
           `).join('')}
         </div>
       </div>
-      ${this._formField('Completado', `<input type="checkbox" id="evCompleted" ${ev && ev.completed ? 'checked' : ''} style="width:18px;height:18px;margin-top:4px;">`)}
+      ${this._formField('Completado', `<input type="checkbox" id="evCompleted" ${ev && ev.completed ? 'checked' : ''} style="width:18px;height:18px;margin-top:4px;accent-color:var(--ios-blue);">`)}
       ${this._formField('Notas', `<textarea class="form-control" id="evNotes" rows="2">${ev ? this._esc(ev.notes || '') : ''}</textarea>`)}
       ${isOverride ? '<input type="hidden" id="evIsOverride" value="1">' : ''}
     `;
@@ -925,11 +1072,11 @@ const UI = {
     }
   },
 
+  // ---------- Task form ----------
   openTaskForm(taskId) {
     const t = taskId ? AgendaData.getTasks().find(t => t.id === taskId) : null;
     const cats = AgendaData.getCategories();
     const isEdit = !!t;
-    const today = this._toDateStr(new Date());
 
     const body = `
       ${this._formField('Título', `<input class="form-control" id="taskTitle" value="${this._esc(t ? t.title : '')}" placeholder="¿Qué hay que hacer?" autofocus>`)}
@@ -957,6 +1104,7 @@ const UI = {
     this.showModal(isEdit ? 'Editar tarea' : 'Nueva tarea', body, footer);
   },
 
+  // ---------- Goal form ----------
   openGoalForm(goalId) {
     const g = goalId ? AgendaData.getGoals().find(g => g.id === goalId) : null;
     const cats = AgendaData.getCategories();
@@ -966,7 +1114,7 @@ const UI = {
       ${this._formField('Título', `<input class="form-control" id="goalTitle" value="${this._esc(g ? g.title : '')}" placeholder="Nombre de la meta" autofocus>`)}
       ${this._formField('Descripción', `<textarea class="form-control" id="goalDesc" rows="2">${g ? this._esc(g.description || '') : ''}</textarea>`)}
       <div class="form-row">
-        ${this._formField('Periodo', this._select([
+        ${this._formField('Período', this._select([
           { value: 'yearly', label: 'Anual' },
           { value: 'quarterly', label: 'Trimestral' },
           { value: 'monthly', label: 'Mensual' },
@@ -988,6 +1136,7 @@ const UI = {
     this.showModal(isEdit ? 'Editar meta' : 'Nueva meta', body, footer);
   },
 
+  // ---------- Habit form ----------
   openHabitForm(habitId) {
     const h = habitId ? AgendaData.getHabits().find(h => h.id === habitId) : null;
     const cats = AgendaData.getCategories();
@@ -1014,6 +1163,7 @@ const UI = {
     this.showModal(isEdit ? 'Editar hábito' : 'Nuevo hábito', body, footer);
   },
 
+  // ---------- Note form ----------
   openNoteForm(noteId) {
     const n = noteId ? AgendaData.getNotes().find(n => n.id === noteId) : null;
     const isEdit = !!n;
@@ -1035,7 +1185,13 @@ const UI = {
     this.showModal(isEdit ? 'Editar nota' : 'Nueva nota', body, footer);
   },
 
+  // ---------- Gym form ----------
   openGymForm(routineId) {
+    UI._currentGymId = routineId || null;
+    UI.openGymFormInner(routineId);
+  },
+
+  openGymFormInner(routineId) {
     const r = routineId ? AgendaData.getGymRoutines().find(r => r.id === routineId) : null;
     const isEdit = !!r;
     const today = this._toDateStr(new Date());
@@ -1046,7 +1202,6 @@ const UI = {
     const exercises = (r && r.exercises) || [];
 
     if (exercises.length === 0 && !isEdit) {
-      // New routine: start with one empty exercise
       exercisesHtml = this._gymExerciseHtml(null, 0, hist, restOptions);
     } else {
       exercises.forEach((ex, i) => {
@@ -1062,9 +1217,9 @@ const UI = {
         ${this._formField('Nombre', `<input class="form-control" id="gymName" value="${this._esc(r ? r.name : '')}" placeholder="Ej: Push Day" autofocus>`)}
         ${this._formField('Fecha', `<input class="form-control" type="date" id="gymDate" value="${r ? r.date : today}">`)}
       </div>
-      <div class="section-title" style="margin-top:4px;">🏋️ Ejercicios</div>
+      <div class="section-title" style="margin-top:8px;">🏋️ Ejercicios</div>
       <div id="gymExercises">${exercisesHtml}</div>
-      <button class="btn-secondary btn-sm" onclick="App.addGymExercise()" style="width:100%;margin-top:4px;">+ Agregar ejercicio</button>
+      <button class="btn-secondary btn-sm" onclick="App.addGymExercise()" style="width:100%;margin-top:6px;">+ Agregar ejercicio</button>
       ${isEdit ? `<div class="gym-volume" id="gymVolume">🏋️ Volumen total: <strong>${totalVolume.toLocaleString()} kg</strong></div>` : ''}
       <input type="hidden" id="gymIsEdit" value="${isEdit ? '1' : '0'}">
     `;
@@ -1087,12 +1242,8 @@ const UI = {
     const histKey = name ? hist[name] : null;
     const prefillWeight = histKey ? histKey.lastWeight : '';
 
-    let setsHtml = `<div style="display:grid;grid-template-columns:60px 60px 80px 36px 20px;gap:8px;align-items:center;margin-bottom:4px;">
-      <span class="gym-set-label">Peso</span>
-      <span class="gym-set-label">Reps</span>
-      <span class="gym-set-label">Descanso</span>
-      <span class="gym-set-label" style="text-align:center;">✓</span>
-      <span></span>
+    let setsHtml = `<div style="display:grid;grid-template-columns:52px 52px 74px 32px;gap:7px;align-items:center;margin-bottom:4px;font-size:0.68rem;color:var(--ios-tertiary-label);text-transform:uppercase;letter-spacing:0.3px;">
+      <span>Peso</span><span>Reps</span><span>Descanso</span><span style="text-align:center;">✓</span>
     </div>`;
 
     sets.forEach((set, si) => {
@@ -1104,12 +1255,12 @@ const UI = {
     return `<div class="gym-exercise" data-ex-idx="${idx}">
       <div class="gym-exercise-header">
         <input class="form-control gym-exercise-name" id="gymExName_${idx}" value="${this._esc(name)}" placeholder="Nombre del ejercicio" oninput="App.onGymExerciseNameChange(${idx})">
-        <button class="btn-danger btn-sm" onclick="App.removeGymExercise(${idx})" style="padding:4px 8px;font-size:0.7rem;">✕</button>
+        <button class="btn-danger btn-sm" onclick="App.removeGymExercise(${idx})" style="padding:5px 10px;font-size:0.75rem;">✕</button>
       </div>
       <div id="gymSets_${idx}">${setsHtml}</div>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-top:7px;">
         <span class="gym-add-set" onclick="App.addGymSet(${idx})">+ Serie</span>
-        <input class="form-control" id="gymExNotes_${idx}" value="${this._esc(notes)}" placeholder="Notas (opcional)" style="flex:1;font-size:0.78rem;padding:4px 8px;">
+        <input class="form-control" id="gymExNotes_${idx}" value="${this._esc(notes)}" placeholder="Notas (opcional)" style="flex:1;font-size:0.78rem;padding:6px 10px;">
       </div>
     </div>`;
   },
@@ -1127,40 +1278,41 @@ const UI = {
     </div>`;
   },
 
+  // ---------- Settings ----------
   openSettings() {
     const s = AgendaData.getSettings();
     const cats = AgendaData.getCategories();
 
-    let body = `<h4 style="color:#fff;margin-bottom:12px;">⏰ Horario</h4>
+    let body = `<h4 style="color:var(--ios-label);margin-bottom:10px;font-size:0.88rem;">⏰ Jornada laboral</h4>
       <div class="form-row">
-        ${this._formField('Inicio jornada', `<input class="form-control" type="number" id="setWorkStart" min="0" max="23" value="${s.workStartHour}">`)}
-        ${this._formField('Fin jornada', `<input class="form-control" type="number" id="setWorkEnd" min="0" max="23" value="${s.workEndHour}">`)}
+        ${this._formField('Inicio', `<input class="form-control" type="number" id="setWorkStart" min="0" max="23" value="${s.workStartHour}">`)}
+        ${this._formField('Fin', `<input class="form-control" type="number" id="setWorkEnd" min="0" max="23" value="${s.workEndHour}">`)}
       </div>
-      <div style="font-size:0.8rem;color:#888;margin-bottom:14px;padding:8px 12px;background:#1a1a34;border-radius:8px;">Vista horaria: 00:00 a 23:00 (24h fijo)</div>
-      <h4 style="color:#fff;margin:16px 0 12px;">📁 Categorías</h4>
-      <div style="display:flex;flex-direction:column;gap:6px;">`;
+      <h4 style="color:var(--ios-label);margin:16px 0 10px;font-size:0.88rem;">📁 Categorías</h4>
+      <div style="display:flex;flex-direction:column;gap:8px;">`;
 
     cats.forEach(c => {
-      body += `<div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;">
-        <span>${c.icon}</span>
-        <input type="color" value="${c.color}" onchange="App.updateCatColor('${c.id}', this.value)" style="width:32px;height:32px;padding:0;border:none;background:none;">
-        <span style="color:#fff;flex:1;">${c.label}</span>
+      body += `<div style="display:flex;align-items:center;gap:10px;font-size:0.86rem;">
+        <span style="font-size:1.1rem;">${c.icon}</span>
+        <input type="color" value="${c.color}" onchange="App.updateCatColor('${c.id}', this.value)" style="width:34px;height:34px;padding:0;border:none;background:none;border-radius:8px;cursor:pointer;">
+        <span style="color:var(--ios-label);flex:1;">${this._esc(c.label)}</span>
       </div>`;
     });
 
     body += `</div>
-      <h4 style="color:#fff;margin:16px 0 12px;">💾 Datos</h4>
+      <h4 style="color:var(--ios-label);margin:16px 0 10px;font-size:0.88rem;">💾 Datos</h4>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-secondary btn-sm" onclick="App.exportData()">📤 Exportar</button>
-        <button class="btn-secondary btn-sm" onclick="App.importData()">📥 Importar</button>
-        <button class="btn-danger btn-sm" onclick="App.clearAllData()">🗑️ Limpiar todo</button>
+        <button class="btn-secondary btn-sm" onclick="App.exportData()">📤 Exportar copia</button>
+        <button class="btn-secondary btn-sm" onclick="App.importData()">📥 Importar copia</button>
+        <button class="btn-danger btn-sm" onclick="App.clearAllData()">🗑️ Borrar todo</button>
       </div>`;
 
     const footer = `
-      <button class="btn-secondary" onclick="UI.hideModal()">Cancelar</button>
-      <button class="btn-primary" onclick="App.saveSettings()">Guardar</button>
+      <button class="btn-secondary" onclick="UI.hideModal()">Listo</button>
+      <button class="btn-primary" onclick="App.saveSettings()">Guardar cambios</button>
     `;
 
     this.showModal('⚙️ Configuración', body, footer);
   },
+
 };

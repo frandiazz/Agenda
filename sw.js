@@ -1,4 +1,4 @@
-const CACHE = 'agenda-v1';
+const CACHE = 'agenda-v2';
 const BASE = self.location.pathname.replace(/[^/]+$/, '');
 const ASSETS = [
   BASE,
@@ -10,16 +10,21 @@ const ASSETS = [
   BASE + 'manifest.json',
   BASE + 'assets/icon.svg'
 ];
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
+
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys().then(ks =>
+      Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(

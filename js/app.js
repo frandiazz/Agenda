@@ -8,6 +8,7 @@ const App = {
     taskFilterPri: 'all',
     taskFilterStatus: 'all',
     notesQuery: '',
+    searchQuery: '',
   },
 
   init() {
@@ -15,13 +16,14 @@ const App = {
     this.updateHeaderDate();
     this.renderView('today');
 
-    // Nav clicks
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+    // Nav clicks (event delegation for dynamically rendered bottom bar)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.nav-btn');
+      if (btn) {
         const v = btn.dataset.view;
         if (v === '__more__') { this.toggleMoreMenu(); return; }
         this.switchView(v);
-      });
+      }
     });
 
     // Nav controls
@@ -36,43 +38,59 @@ const App = {
     document.getElementById('settingsBtn').addEventListener('click', () => UI.openSettings());
 
     // Modal close
-    document.querySelectorAll('.modal-close').forEach(el => {
-      el.addEventListener('click', () => {
-        UI.hideModal();
-        UI.hideConfirm();
-      });
+    document.querySelectorAll('.btn-close-modal').forEach(el => {
+      el.addEventListener('click', () => { UI.hideModal(); UI.hideConfirm(); });
     });
     document.querySelectorAll('.modal-backdrop').forEach(el => {
-      el.addEventListener('click', () => {
-        UI.hideModal();
-        UI.hideConfirm();
-      });
+      el.addEventListener('click', () => { UI.hideModal(); UI.hideConfirm(); });
     });
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        UI.hideModal();
-        UI.hideConfirm();
-      }
+      if (e.key === 'Escape') { UI.hideModal(); UI.hideConfirm(); }
     });
 
-    // Touch swipe support
-    let touchStartX = 0, touchStartY = 0;
+    // Touch swipe navigation (mobile)
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
     document.addEventListener('touchstart', (e) => {
       touchStartX = e.changedTouches[0].screenX;
       touchStartY = e.changedTouches[0].screenY;
+      touchStartTime = Date.now();
     }, { passive: true });
+
     document.addEventListener('touchend', (e) => {
       const dx = e.changedTouches[0].screenX - touchStartX;
       const dy = e.changedTouches[0].screenY - touchStartY;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        if (dx < 0) this.navigate(1);
-        else this.navigate(-1);
+      const dt = Date.now() - touchStartTime;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // Horizontal swipe
+      if (absDx > 50 && absDx > absDy * 1.5 && dt < 500) {
+        const view = this.state.currentView;
+        if (view === 'calendar') {
+          const mode = this.state.calendarMode || 'day';
+          const dir = dx < 0 ? 1 : -1;
+          const d = new Date(this.state.currentDate);
+          if (mode === 'month') d.setMonth(d.getMonth() + dir);
+          else if (mode === 'week') d.setDate(d.getDate() + dir * 7);
+          else d.setDate(d.getDate() + dir);
+          this.state.currentDate = d;
+          this.renderView(view);
+        } else {
+          this.navigate(dx < 0 ? 1 : -1);
+        }
+        return;
+      }
+
+      // Vertical pull-to-refresh (only near top)
+      if (absDy > 80 && dy > 0 && absDy > absDx * 1.5 && window.scrollY < 20) {
+        this.renderView(this.state.currentView);
+        UI.toast('🔄 Actualizado');
       }
     }, { passive: true });
 
-    // FAB visibility on scroll (hide on scroll down, show on scroll up)
+    // FAB visibility on scroll
     let lastScrollY = 0;
     document.addEventListener('scroll', () => {
       const fab = document.getElementById('fab');
@@ -92,6 +110,15 @@ const App = {
       btn.style.setProperty('--ripple-x', x + '%');
       btn.style.setProperty('--ripple-y', y + '%');
     });
+
+    // Haptic-like visual feedback for taps (iOS feel)
+    document.addEventListener('touchstart', (e) => {
+      const el = e.target.closest('button, .event-row, .task-item, .week-day, .month-day, .gym-card, .note-card, .trip-card');
+      if (el) el.classList.add('tap-active');
+    }, { passive: true });
+    document.addEventListener('touchend', (e) => {
+      document.querySelectorAll('.tap-active').forEach(el => el.classList.remove('tap-active'));
+    }, { passive: true });
   },
 
   // ---------- Navigation ----------
@@ -102,15 +129,19 @@ const App = {
 
   switchView(view) {
     this.state.currentView = view;
+    this._updateNavActive(view);
+    this.renderView(view);
+    this.hideMoreMenu();
+  },
+
+  _updateNavActive(view) {
     document.querySelectorAll('.nav-btn').forEach(b => {
       const isActive = b.dataset.view === view;
       b.classList.toggle('active', isActive);
-      // If secondary view is active and button is hidden, clear others
       if (isActive && b.classList.contains('nav-secondary')) {
         document.querySelectorAll('.nav-btn:not(.nav-secondary)').forEach(x => x.classList.remove('active'));
       }
     });
-    this.renderView(view);
   },
 
   renderView(view) {
@@ -127,6 +158,7 @@ const App = {
       case 'tasks': container.innerHTML = UI.renderTasks(this.state); break;
       case 'habits': container.innerHTML = UI.renderHabits(this.state); break;
       case 'notes': container.innerHTML = UI.renderNotes(this.state); break;
+      case 'search': container.innerHTML = UI.renderSearch(this.state); break;
     }
     this._postRender(view, container);
     this.updateNavTitle();
@@ -134,16 +166,11 @@ const App = {
   },
 
   _postRender(view, container) {
-    // Close more menu if open
     this.hideMoreMenu();
-    // Add btn class to buttons
     container.querySelectorAll('.btn-primary, .btn-secondary, .btn-danger').forEach(el => el.classList.add('btn'));
-    // Stagger grids
     const grids = container.querySelectorAll('.today-grid, .hourly-grid, .week-grid, .month-grid, .goals-grid, .trips-grid, .notes-grid, .tasks-list, .stats-row');
     grids.forEach(g => g.classList.add('stagger-children'));
-    // FAB visibility
     this._updateFab(view);
-    // Countup stats
     container.querySelectorAll('.stat-value').forEach(el => {
       const val = parseFloat(el.textContent);
       if (!isNaN(val) && val > 0) {
@@ -179,13 +206,14 @@ const App = {
         break;
       }
       case 'daily': title = UI._formatDate(d); break;
-      case 'weekly':
+      case 'weekly': {
         const monday = new Date(d);
         monday.setDate(monday.getDate() - monday.getDay() + (monday.getDay() === 0 ? -6 : 1));
         const sunday = new Date(monday);
         sunday.setDate(sunday.getDate() + 6);
         title = `${UI._formatDateShort(monday)} - ${UI._formatDateShort(sunday)}`;
         break;
+      }
       case 'monthly': title = `${MONTHS[d.getMonth()].charAt(0).toUpperCase() + MONTHS[d.getMonth()].slice(1)} ${d.getFullYear()}`; break;
       case 'goals': title = '🎯 Metas y Objetivos'; break;
       case 'trips': title = '✈️ Viajes Soñados'; break;
@@ -193,6 +221,7 @@ const App = {
       case 'tasks': title = '✅ Tareas'; break;
       case 'habits': title = '🔄 Hábitos'; break;
       case 'notes': title = '📝 Notas'; break;
+      case 'search': title = '🔍 Buscar'; break;
     }
     document.getElementById('navTitle').textContent = title;
   },
@@ -227,6 +256,11 @@ const App = {
     }
   },
 
+  goToDate(dateStr) {
+    this.state.currentDate = new Date(dateStr + 'T12:00:00');
+    this.switchView('daily');
+  },
+
   _updateFab(view) {
     const fab = document.getElementById('fab');
     if (!fab) return;
@@ -256,7 +290,7 @@ const App = {
     if (fab && fab._action) fab._action();
   },
 
-  // ---------- More menu (mobile) ----------
+  // ---------- More menu (mobile bottom sheet) ----------
   _moreOpen: false,
 
   toggleMoreMenu() {
@@ -275,6 +309,7 @@ const App = {
       { view: 'goals', icon: '🎯', label: 'Metas' },
       { view: 'trips', icon: '✈️', label: 'Viajes' },
       { view: 'habits', icon: '🔄', label: 'Hábitos' },
+      { view: 'gym', icon: '🏋️', label: 'Gimnasio' },
     ];
     const active = this.state.currentView;
 
@@ -298,9 +333,16 @@ const App = {
     document.body.classList.remove('more-open');
   },
 
-  goToDate(dateStr) {
-    this.state.currentDate = new Date(dateStr + 'T12:00:00');
-    this.switchView('daily');
+  // ---------- Search ----------
+  setSearchQuery(val) {
+    this.state.searchQuery = val;
+    if (this.state.currentView === 'search') this.renderView('search');
+  },
+
+  openSearch() {
+    this.state.searchQuery = '';
+    this.switchView('search');
+    setTimeout(() => document.getElementById('searchQuery')?.focus(), 100);
   },
 
   // ---------- Theme ----------
@@ -308,6 +350,9 @@ const App = {
     const theme = localStorage.getItem('agenda_theme') || 'dark';
     document.body.setAttribute('data-theme', theme);
     document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+    // Update meta theme-color dynamically
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#000000' : '#f2f2f7');
   },
 
   toggleTheme() {
@@ -353,7 +398,7 @@ const App = {
 
     const recurrence = document.getElementById('evRecurrence').value;
     if (recurrence === 'custom' && recurrenceDays.length === 0) {
-      UI.toast('⚠️ Selecciona al menos un día para la repetición personalizada');
+      UI.toast('⚠️ Seleccioná al menos un día para la repetición personalizada');
       return;
     }
 
@@ -408,7 +453,7 @@ const App = {
     if (isRecurring) {
       UI.showConfirm(
         `<p>¿Eliminar <strong>${UI._esc(ev.title)}</strong>?</p>
-         <p style="color:#888;font-size:0.85rem;margin-top:8px;">Es un evento que se repite: ${AgendaData.getRecurrenceLabel(ev.recurrence, ev.recurrenceDays)}</p>`,
+         <p style="color:var(--ios-tertiary-label);font-size:0.82rem;margin-top:8px;">Es un evento que se repite: ${AgendaData.getRecurrenceLabel(ev.recurrence, ev.recurrenceDays)}</p>`,
         () => {
           AgendaData.deleteEvent(id);
           UI.toast('🗑️ Evento eliminado');
@@ -560,19 +605,19 @@ const App = {
     const input = document.getElementById('newBucketItem');
     const title = input.value.trim();
     if (!title) return;
-    const trip = AgendaData.getDreamTrips().find(t => t.id === tripId);
-    if (!trip) return;
-    if (!trip.bucketList) trip.bucketList = [];
-    trip.bucketList.push({ title, done: false });
-    AgendaData.updateDreamTrip(tripId, { bucketList: trip.bucketList });
+    AgendaData.addBucketItem(tripId, title);
     input.value = '';
-    UI.toast('✅ Item agregado');
+    UI.toast('✅ Ítem agregado');
     UI.openTripForm(tripId);
   },
 
   toggleBucketItem(tripId, idx) {
     AgendaData.toggleBucketItem(tripId, idx);
     UI.openTripForm(tripId);
+  },
+
+  removeLastBucketItem(tripId) {
+    UI.removeLastBucketItem(tripId);
   },
 
   addTripPhoto(event) {
@@ -643,7 +688,7 @@ const App = {
   saveNoteForm(noteId) {
     const title = document.getElementById('noteTitle').value.trim();
     const content = document.getElementById('noteContent').value.trim();
-    if (!title && !content) { UI.toast('⚠️ Escribe al menos un título o contenido'); return; }
+    if (!title && !content) { UI.toast('⚠️ Escribí al menos un título o contenido'); return; }
     const tagsRaw = document.getElementById('noteTags').value.trim();
     const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(s => s) : [];
     const data = {
@@ -676,7 +721,6 @@ const App = {
   _nextGymExIdx: 0,
 
   openGymForm(routineId) {
-    UI._currentGymId = routineId || null;
     UI.openGymForm(routineId);
     if (routineId) {
       const r = AgendaData.getGymRoutines().find(r => r.id === routineId);
@@ -713,11 +757,7 @@ const App = {
 
       if (sets.length > 0) {
         const notesEl = exEl.querySelector('input[id^="gymExNotes_"]');
-        exercises.push({
-          name: exName,
-          sets,
-          notes: notesEl ? notesEl.value.trim() : '',
-        });
+        exercises.push({ name: exName, sets, notes: notesEl ? notesEl.value.trim() : '' });
       }
     });
 
@@ -733,7 +773,6 @@ const App = {
       routineId = saved.id;
     }
 
-    // Update history
     const final = AgendaData.getGymRoutines().find(r => r.id === routineId);
     if (final) AgendaData._updateGymHistory(final);
 
@@ -809,7 +848,6 @@ const App = {
     const hist = AgendaData.getGymExerciseHistory();
     const h = hist[name];
     if (!h) return;
-    // Pre-fill first empty set
     const wEl = document.getElementById(`gymWeight_${idx}_0`);
     const rEl = document.getElementById(`gymReps_${idx}_0`);
     if (wEl && rEl && !wEl.value && !rEl.value) {
@@ -865,7 +903,7 @@ const App = {
         try {
           const data = JSON.parse(ev.target.result);
           if (AgendaData.importAll(data)) {
-            UI.toast('✅ Datos importados correctamente');
+            UI.toast('✅ Datos importados');
             this.renderView(this.state.currentView);
           } else {
             UI.toast('⚠️ Formato de archivo inválido');
@@ -881,21 +919,19 @@ const App = {
 
   clearAllData() {
     UI.showConfirm(
-      '<p style="color:#ff6b6b;">¿Estás seguro? Se eliminarán TODOS tus datos (eventos, tareas, metas, hábitos y notas).</p><p style="color:#888;font-size:0.85rem;margin-top:8px;">Esta acción no se puede deshacer.</p>',
+      '<p style="color:#ff453a;">¿Estás seguro? Se eliminarán TODOS tus datos (eventos, tareas, metas, hábitos, notas, gimnasio y viajes).</p><p style="color:var(--ios-tertiary-label);font-size:0.82rem;margin-top:8px;">Esta acción no se puede deshacer.</p>',
       () => {
-        localStorage.removeItem('agenda_events');
-        localStorage.removeItem('agenda_tasks');
-        localStorage.removeItem('agenda_goals');
-        localStorage.removeItem('agenda_habits');
-        localStorage.removeItem('agenda_notes');
-        localStorage.removeItem('agenda_gymRoutines');
-        localStorage.removeItem('agenda_gymHistory');
+        AgendaData.clearAll();
         UI.toast('🗑️ Todos los datos eliminados');
+        UI.hideModal();
         this.renderView(this.state.currentView);
       }
     );
   },
 };
+
+// MONTHS used by updateNavTitle
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', () => App.init());

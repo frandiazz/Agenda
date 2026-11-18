@@ -1,16 +1,27 @@
 {
   "name": "Agenda Personal",
   "short_name": "Agenda",
-  "description": "Planificador diario con eventos, tareas, metas, hábitos, gimnasio y viajes",
-  "start_url": "/Agenda/",
+  "description": "Planificador diario: eventos, tareas, metas, hábitos, gimnasio, viajes y notas.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050510",
-  "theme_color": "#6C63FF",
+  "background_color": "#000000",
+  "theme_color": "#0a84ff",
+  "id": "/",
+  "lang": "es-AR",
+  "dir": "ltr",
+  "categories": ["productivity", "lifestyle", "utilities"],
   "icons": [
     {
       "src": "assets/icon.svg",
       "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
@@ -21,6 +32,28 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "lifestyle"],
-  "lang": "es-AR"
+  "shortcuts": [
+    {
+      "name": "Nuevo evento",
+      "short_name": "Evento",
+      "description": "Agregar un evento rápido",
+      "url": "/?view=today&action=add-event",
+      "icons": [{ "src": "assets/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Nueva tarea",
+      "short_name": "Tarea",
+      "description": "Agregar una tarea",
+      "url": "/?view=tasks&action=add-task",
+      "icons": [{ "src": "assets/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Hoy",
+      "short_name": "Hoy",
+      "description": "Ir a la vista de hoy",
+      "url": "/?view=today",
+      "icons": [{ "src": "assets/icon.svg", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": []
 }

@@ -2,12 +2,14 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visually">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="application-name" content="Agenda">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#6C63FF">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon.svg">
@@ -22,6 +24,7 @@
 <div class="bg-orb"></div>
 <div class="bg-orb"></div>
 <div class="bg-noise"></div>
+
 <div id="app">
   <header id="header">
     <div class="header-left">
@@ -35,47 +38,50 @@
     </div>
   </header>
 
+  <!-- Bottom tab bar (iOS style) -->
   <nav id="mainNav">
-    <button class="nav-btn active" data-view="today" data-icon="📅">Hoy</button>
-    <button class="nav-btn" data-view="calendar" data-icon="📅">Cal</button>
-    <button class="nav-btn" data-view="tasks" data-icon="✅">Tareas</button>
-    <button class="nav-btn" data-view="gym" data-icon="🏋️">Gym</button>
+    <button class="nav-btn active" data-view="today" data-icon="🏠">Inicio</button>
+    <button class="nav-btn" data-view="calendar" data-icon="📅">Calendario</button>
     <button class="nav-btn nav-secondary" data-view="daily" data-icon="📋">Día</button>
-    <button class="nav-btn nav-secondary" data-view="weekly" data-icon="📆">Semanal</button>
-    <button class="nav-btn nav-secondary" data-view="monthly" data-icon="🗓️">Mensual</button>
+    <button class="nav-btn nav-secondary" data-view="weekly" data-icon="📆">Semana</button>
+    <button class="nav-btn nav-secondary" data-view="monthly" data-icon="🗓️">Mes</button>
+    <button class="nav-btn" data-view="tasks" data-icon="✅">Tareas</button>
+    <button class="nav-btn nav-secondary" data-view="habits" data-icon="🔄">Hábitos</button>
+    <button class="nav-btn nav-secondary" data-view="gym" data-icon="🏋️">Gym</button>
     <button class="nav-btn nav-secondary" data-view="goals" data-icon="🎯">Metas</button>
     <button class="nav-btn nav-secondary" data-view="trips" data-icon="✈️">Viajes</button>
-    <button class="nav-btn nav-secondary" data-view="habits" data-icon="🔄">Hábitos</button>
     <button class="nav-btn nav-secondary" data-view="notes" data-icon="📝">Notas</button>
     <button class="nav-btn nav-more-btn" data-view="__more__" data-icon="⋯">Más</button>
   </nav>
 
   <div id="navControls">
-    <button class="btn-nav" id="prevBtn">◀</button>
+    <button class="btn-nav" id="prevBtn" data-tip="Anterior">◀</button>
     <span class="nav-title" id="navTitle"></span>
-    <button class="btn-nav" id="nextBtn">▶</button>
+    <button class="btn-nav" id="nextBtn" data-tip="Siguiente">▶</button>
   </div>
 
   <main id="mainContent"></main>
 
+  <!-- Modal -->
   <div id="modal" class="modal hidden">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="UI.hideModal(); UI.hideConfirm();"></div>
     <div class="modal-panel">
       <div class="modal-header">
         <h3 id="modalTitle"></h3>
-        <button class="btn-icon modal-close">&times;</button>
+        <button class="btn-close-modal" onclick="UI.hideModal(); UI.hideConfirm();">&times;</button>
       </div>
       <div class="modal-body" id="modalBody"></div>
       <div class="modal-footer" id="modalFooter"></div>
     </div>
   </div>
 
+  <!-- Confirm modal -->
   <div id="confirmModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="UI.hideConfirm();"></div>
     <div class="modal-panel modal-sm">
       <div class="modal-header">
         <h3>Confirmar</h3>
-        <button class="btn-icon modal-close">&times;</button>
+        <button class="btn-close-modal" onclick="UI.hideConfirm();">&times;</button>
       </div>
       <div class="modal-body" id="confirmBody"></div>
       <div class="modal-footer" id="confirmFooter"></div>
@@ -85,7 +91,7 @@
   <div id="toast" class="toast hidden"></div>
 
   <!-- FAB -->
-  <button id="fab" class="fab hidden" onclick="App.onFabClick()">+</button>
+  <button id="fab" class="fab hidden" onclick="App.onFabClick()" title="Agregar">+</button>
 </div>
 
 <script src="js/data.js"></script>
@@ -97,7 +103,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
-// PWA install prompt
+// PWA install prompt (iOS uses "Agregar a pantalla de inicio")
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();

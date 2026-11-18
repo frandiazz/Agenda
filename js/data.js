@@ -2,6 +2,12 @@ const AgendaData = {
   _storage: window.localStorage,
   _prefix: 'agenda_',
 
+  // All storage keys used by the app (for full reset / migration)
+  _keys: [
+    'categories', 'settings', 'events', 'tasks', 'goals',
+    'habits', 'notes', 'dreamTrips', 'gymRoutines', 'gymHistory'
+  ],
+
   _get(key, fallback) {
     try {
       const raw = this._storage.getItem(this._prefix + key);
@@ -16,14 +22,14 @@ const AgendaData = {
   // ---------- Categories ----------
   getCategories() {
     return this._get('categories', [
-      { id: 'trabajo', label: 'Trabajo', color: '#4A90D9', icon: '💼' },
-      { id: 'personal', label: 'Personal', color: '#7B68EE', icon: '🧑' },
-      { id: 'salud', label: 'Salud', color: '#2ECC71', icon: '💪' },
-      { id: 'estudio', label: 'Estudio', color: '#F39C12', icon: '📚' },
-      { id: 'familia', label: 'Familia', color: '#E74C3C', icon: '👨‍👩‍👧‍👦' },
-      { id: 'finanzas', label: 'Finanzas', color: '#1ABC9C', icon: '💰' },
-      { id: 'social', label: 'Social', color: '#E91E63', icon: '🤝' },
-      { id: 'ocio', label: 'Ocio', color: '#9B59B6', icon: '🎮' },
+      { id: 'trabajo', label: 'Trabajo', color: '#0a84ff', icon: '💼' },
+      { id: 'personal', label: 'Personal', color: '#bf5af2', icon: '🧑' },
+      { id: 'salud', label: 'Salud', color: '#32d74b', icon: '💪' },
+      { id: 'estudio', label: 'Estudio', color: '#ff9f0a', icon: '📚' },
+      { id: 'familia', label: 'Familia', color: '#ff375f', icon: '👨‍👩‍👧‍👦' },
+      { id: 'finanzas', label: 'Finanzas', color: '#00c2a9', icon: '💰' },
+      { id: 'social', label: 'Social', color: '#ff375f', icon: '🤝' },
+      { id: 'ocio', label: 'Ocio', color: '#bf5af2', icon: '🎮' },
     ]);
   },
 
@@ -34,7 +40,10 @@ const AgendaData = {
   // ---------- Settings ----------
   getSettings() {
     return this._get('settings', {
-      workStartHour: 8, workEndHour: 18,
+      workStartHour: 8,
+      workEndHour: 18,
+      weekStart: 1, // 0=Dom, 1=Lun
+      notifications: true,
     });
   },
 
@@ -48,7 +57,7 @@ const AgendaData = {
   },
 
   isRecurringOnDate(event, dateStr) {
-    if (!event.recurrence || event.recurrence === 'none') return false;
+    if (!event || !event.recurrence || event.recurrence === 'none') return false;
     if (event.exceptions && event.exceptions[dateStr]) return false;
     const date = new Date(dateStr + 'T12:00:00');
     const day = date.getDay();
@@ -69,7 +78,7 @@ const AgendaData = {
     const all = this.getEvents();
     const direct = all.filter(e => e.date === date && (!e.recurrence || e.recurrence === 'none'));
     const recurring = all.filter(e => e.recurrence && e.recurrence !== 'none' && this.isRecurringOnDate(e, date));
-    return [...direct, ...recurring];
+    return [...direct, ...recurring].sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
   },
 
   getEventsInRange(startDate, endDate) {
@@ -92,10 +101,15 @@ const AgendaData = {
 
   addEvent(data) {
     const events = this.getEvents();
-    const ev = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, createdAt: new Date().toISOString() };
-    if (!ev.recurrence) ev.recurrence = 'none';
-    if (ev.recurrence === 'none') ev.recurrenceDays = undefined;
-    if (!ev.exceptions) ev.exceptions = {};
+    const ev = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      recurrence: data.recurrence || 'none',
+      recurrenceDays: data.recurrence === 'custom' && Array.isArray(data.recurrenceDays) ? data.recurrenceDays : undefined,
+      exceptions: data.exceptions || {},
+      completed: data.completed || false,
+      createdAt: new Date().toISOString(),
+    };
     events.push(ev);
     this._set('events', events);
     return ev;
@@ -147,7 +161,13 @@ const AgendaData = {
 
   addDreamTrip(data) {
     const trips = this.getDreamTrips();
-    const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, images: data.images || [], bucketList: data.bucketList || [], createdAt: new Date().toISOString() };
+    const t = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      images: Array.isArray(data.images) ? data.images : [],
+      bucketList: Array.isArray(data.bucketList) ? data.bucketList : [],
+      createdAt: new Date().toISOString(),
+    };
     trips.push(t);
     this._set('dreamTrips', trips);
     return t;
@@ -169,8 +189,27 @@ const AgendaData = {
   toggleBucketItem(tripId, itemIdx) {
     const trips = this.getDreamTrips();
     const t = trips.find(t => t.id === tripId);
-    if (!t || !t.bucketList[itemIdx]) return null;
+    if (!t || !t.bucketList || !t.bucketList[itemIdx]) return null;
     t.bucketList[itemIdx].done = !t.bucketList[itemIdx].done;
+    this._set('dreamTrips', trips);
+    return t;
+  },
+
+  addBucketItem(tripId, title) {
+    const trips = this.getDreamTrips();
+    const t = trips.find(t => t.id === tripId);
+    if (!t) return null;
+    if (!t.bucketList) t.bucketList = [];
+    t.bucketList.push({ title, done: false });
+    this._set('dreamTrips', trips);
+    return t;
+  },
+
+  removeBucketItem(tripId, itemIdx) {
+    const trips = this.getDreamTrips();
+    const t = trips.find(t => t.id === tripId);
+    if (!t || !t.bucketList) return null;
+    t.bucketList.splice(itemIdx, 1);
     this._set('dreamTrips', trips);
     return t;
   },
@@ -182,7 +221,13 @@ const AgendaData = {
 
   addTask(data) {
     const tasks = this.getTasks();
-    const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, status: 'pending', createdAt: new Date().toISOString() };
+    const t = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      status: data.status || 'pending',
+      priority: data.priority || 3,
+      createdAt: new Date().toISOString(),
+    };
     tasks.push(t);
     this._set('tasks', tasks);
     return t;
@@ -217,7 +262,13 @@ const AgendaData = {
 
   addGoal(data) {
     const goals = this.getGoals();
-    const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, progress: data.progress || 0, milestones: data.milestones || [], createdAt: new Date().toISOString() };
+    const g = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      progress: data.progress || 0,
+      milestones: Array.isArray(data.milestones) ? data.milestones : [],
+      createdAt: new Date().toISOString(),
+    };
     goals.push(g);
     this._set('goals', goals);
     return g;
@@ -239,8 +290,7 @@ const AgendaData = {
   toggleMilestone(goalId, mileIdx) {
     const goals = this.getGoals();
     const g = goals.find(g => g.id === goalId);
-    if (!g) return null;
-    if (!g.milestones[mileIdx]) return null;
+    if (!g || !g.milestones || !g.milestones[mileIdx]) return null;
     g.milestones[mileIdx].done = !g.milestones[mileIdx].done;
     const done = g.milestones.filter(m => m.done).length;
     g.progress = g.milestones.length ? Math.round((done / g.milestones.length) * 100) : 0;
@@ -255,7 +305,14 @@ const AgendaData = {
 
   addHabit(data) {
     const habits = this.getHabits();
-    const h = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, logs: {}, streak: 0, createdAt: new Date().toISOString() };
+    const h = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      logs: {},
+      streak: 0,
+      frequency: data.frequency || 'daily',
+      createdAt: new Date().toISOString(),
+    };
     habits.push(h);
     this._set('habits', habits);
     return h;
@@ -286,7 +343,7 @@ const AgendaData = {
   },
 
   _calcStreak(habit) {
-    if (!habit.logs) return 0;
+    if (!habit || !habit.logs) return 0;
     const dates = Object.keys(habit.logs).filter(d => habit.logs[d]).sort().reverse();
     let streak = 0;
     const today = new Date();
@@ -311,7 +368,11 @@ const AgendaData = {
 
   addNote(data) {
     const notes = this.getNotes();
-    const n = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...data, createdAt: new Date().toISOString() };
+    const n = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
     notes.push(n);
     this._set('notes', notes);
     return n;
@@ -330,6 +391,15 @@ const AgendaData = {
     this._set('notes', this.getNotes().filter(n => n.id !== id));
   },
 
+  searchNotes(query) {
+    const q = query.toLowerCase();
+    return this.getNotes().filter(n =>
+      (n.title && n.title.toLowerCase().includes(q)) ||
+      (n.content && n.content.toLowerCase().includes(q)) ||
+      (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
+    );
+  },
+
   // ---------- Gym ----------
   getGymRoutines() {
     return this._get('gymRoutines', []);
@@ -337,7 +407,12 @@ const AgendaData = {
 
   addGymRoutine(data) {
     const list = this.getGymRoutines();
-    const r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), exercises: [], ...data, createdAt: new Date().toISOString() };
+    const r = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      exercises: Array.isArray(data.exercises) ? data.exercises : [],
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
     list.push(r);
     this._set('gymRoutines', list);
     return r;
@@ -372,10 +447,67 @@ const AgendaData = {
     this._set('gymHistory', hist);
   },
 
+  // ---------- Global search ----------
+  searchAll(query) {
+    const q = query.toLowerCase().trim();
+    if (!q) return { events: [], tasks: [], goals: [], habits: [], notes: [], trips: [] };
+    const events = this.getEvents().filter(e =>
+      (e.title && e.title.toLowerCase().includes(q)) ||
+      (e.notes && e.notes.toLowerCase().includes(q))
+    );
+    const tasks = this.getTasks().filter(t =>
+      (t.title && t.title.toLowerCase().includes(q)) ||
+      (t.notes && t.notes.toLowerCase().includes(q))
+    );
+    const goals = this.getGoals().filter(g =>
+      (g.title && g.title.toLowerCase().includes(q)) ||
+      (g.description && g.description.toLowerCase().includes(q))
+    );
+    const habits = this.getHabits().filter(h =>
+      (h.name && h.name.toLowerCase().includes(q)) ||
+      (h.description && h.description.toLowerCase().includes(q))
+    );
+    const notes = this.searchNotes(q);
+    const trips = this.getDreamTrips().filter(t =>
+      (t.destination && t.destination.toLowerCase().includes(q)) ||
+      (t.country && t.country.toLowerCase().includes(q)) ||
+      (t.notes && t.notes.toLowerCase().includes(q)) ||
+      (t.bucketList && t.bucketList.some(i => i.title.toLowerCase().includes(q)))
+    );
+    return { events, tasks, goals, habits, notes, trips };
+  },
+
+  // ---------- Stats ----------
+  getStats() {
+    const events = this.getEvents();
+    const tasks = this.getTasks();
+    const goals = this.getGoals();
+    const habits = this.getHabits();
+    const notes = this.getNotes();
+    const trips = this.getDreamTrips();
+    const today = new Date().toISOString().slice(0, 10);
+    const todayEvents = this.getEventsByDate(today).length;
+    const pendingTasks = tasks.filter(t => t.status !== 'done').length;
+    const doneTasks = tasks.filter(t => t.status === 'done').length;
+    const activeHabits = habits.filter(h => h.logs && h.logs[today]).length;
+    return {
+      events: events.length,
+      todayEvents,
+      tasks: tasks.length,
+      pendingTasks,
+      doneTasks,
+      goals: goals.length,
+      habits: habits.length,
+      activeHabits,
+      notes: notes.length,
+      trips: trips.length,
+    };
+  },
+
   // ---------- Export / Import ----------
   exportAll() {
     return {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       categories: this.getCategories(),
       settings: this.getSettings(),
@@ -405,13 +537,23 @@ const AgendaData = {
     return true;
   },
 
-  // ---------- Search ----------
-  searchNotes(query) {
-    const q = query.toLowerCase();
-    return this.getNotes().filter(n =>
-      (n.title && n.title.toLowerCase().includes(q)) ||
-      (n.content && n.content.toLowerCase().includes(q)) ||
-      (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
-    );
+  // ---------- Clear everything ----------
+  clearAll() {
+    this._keys.forEach(k => this._storage.removeItem(this._prefix + k));
+  },
+
+  // ---------- Validation ----------
+  validateEvent(data) {
+    const errors = [];
+    if (!data.title || !data.title.trim()) errors.push('El título es obligatorio');
+    if (!data.date) errors.push('La fecha es obligatoria');
+    if (!data.startTime) errors.push('La hora de inicio es obligatoria');
+    return errors;
+  },
+
+  validateTask(data) {
+    const errors = [];
+    if (!data.title || !data.title.trim()) errors.push('El título es obligatorio');
+    return errors;
   },
 };
